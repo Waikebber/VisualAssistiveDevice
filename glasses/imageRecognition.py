@@ -1,16 +1,24 @@
 """
 This file is used to see the real-time image detection ability of the cameras.
-If the rasberry pi is directly connected to a monitor via hdmi, you should be able to see real-time detection.
+If the Raspberry Pi is directly connected to a monitor via HDMI, you should be able to see real-time detection.
 """
 import cv2
+from picamera2 import Picamera2
 from ultralytics import YOLO
-import psutil
 
 model = YOLO('yolov8n.pt')  # YOLO nano version for lower resource usage
 
-# Initialize stereo cameras
-left_cam = cv2.VideoCapture(0)   # Left camera
-right_cam = cv2.VideoCapture(1)  # Right camera
+# Initialize stereo cameras using Picamera2
+left_cam = Picamera2(0)  # Camera in cam0 port (left camera)
+right_cam = Picamera2(1)  # Camera in cam1 port (right camera)
+
+# Configure both cameras
+left_cam.configure(left_cam.create_preview_configuration())
+right_cam.configure(right_cam.create_preview_configuration())
+
+# Start the cameras
+left_cam.start()
+right_cam.start()
 
 # Function to display detection results on the frame
 def process_frame(frame):
@@ -18,11 +26,12 @@ def process_frame(frame):
     return results[0].plot() 
 
 while True:
-    retL, left_frame = left_cam.read()
-    retR, right_frame = right_cam.read()
+    # Capture frames from both cameras
+    left_frame = left_cam.capture_array()
+    right_frame = right_cam.capture_array()
 
-    if retL and retR:
-        # Process left and right images
+    if left_frame is not None and right_frame is not None:
+        # Process left and right images with YOLO model
         left_with_detections = process_frame(left_frame)
         right_with_detections = process_frame(right_frame)
 
@@ -33,6 +42,7 @@ while True:
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
-left_cam.release()
-right_cam.release()
+# Stop the cameras and close windows
+left_cam.stop()
+right_cam.stop()
 cv2.destroyAllWindows()
