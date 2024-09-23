@@ -7,24 +7,37 @@ The primary usage of the file is for testing camera connections.
 #   sudo apt update
 #   sudo apt install python3-opencv
 #   sudo apt install libopencv-dev
+#   sudo apt install -y python3-libcamera python3-kms++ python3-picamera2
 
+from picamera2 import Picamera2
 import cv2
 
-left_cam = cv2.VideoCapture(0)  # Left camera
-right_cam = cv2.VideoCapture(1)  # Right camera
+# Create Picamera2 objects for both cameras
+cam0 = Picamera2(0)  # Camera in cam0 port
+cam1 = Picamera2(1)  # Camera in cam1 port
 
+# Configure and start both cameras
+cam0.configure(cam0.create_preview_configuration())
+cam1.configure(cam1.create_preview_configuration())
+
+cam0.start()
+cam1.start()
+
+# Function to capture frames from both cameras and display them
 while True:
-    retL, left_frame = left_cam.read()
-    retR, right_frame = right_cam.read()
+    # Capture frames from both cameras
+    frame0 = cam0.capture_array()
+    frame1 = cam1.capture_array()
 
-    if retL and retR:
-        # Show both frames side by side
-        combined = cv2.hconcat([left_frame, right_frame])
-        cv2.imshow('Stereo Camera', combined)
+    # Display the frames
+    cv2.imshow("Camera 0", frame0)
+    cv2.imshow("Camera 1", frame1)
 
+    # Break the loop if 'q' is pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
-left_cam.release()
-right_cam.release()
+# Stop cameras and close windows
+cam0.stop()
+cam1.stop()
 cv2.destroyAllWindows()
