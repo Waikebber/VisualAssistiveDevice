@@ -2,13 +2,6 @@
 This file runs both cameras connected to the rasberry pi through a python file. 
 The primary usage of the file is for testing camera connections.
 """
-
-# Make sure that the following commands have been ran for rasberry pi usage:
-#   sudo apt update
-#   sudo apt install python3-opencv
-#   sudo apt install libopencv-dev
-#   sudo apt install -y python3-libcamera python3-kms++ python3-picamera2
-
 from picamera2 import Picamera2
 import cv2
 
