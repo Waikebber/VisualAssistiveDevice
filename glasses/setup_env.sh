@@ -33,4 +33,4 @@ deactivate
 python3 -m venv --system-site-packages yolo-env
 
 echo "Setup complete. Virtual environment created and packages installed."
-exho "Activate venv with'source yolo-env/bin/activate'"
+echo "Activate venv with'source yolo-env/bin/activate'"
