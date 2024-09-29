@@ -1,7 +1,8 @@
-import cv2
 from picamera2 import Picamera2
 import time
 import os
+from PIL import Image
+import numpy as np
 
 img_size = (640, 480)
 save_path = "/pics/"
@@ -25,6 +26,11 @@ left_cam.start()
 right_cam.start()
 print("Cameras started successfully.")
 
+# Convert numpy array to image using PIL
+def save_image(image_array, filename):
+    image = Image.fromarray(image_array)  # Convert from numpy array to PIL Image
+    image.save(filename)  # Save the image using Pillow
+
 # Main loop
 try:
     while True:
@@ -44,9 +50,9 @@ try:
                 left_filename = os.path.join(save_path, f"left_{timestamp}.png")
                 right_filename = os.path.join(save_path, f"right_{timestamp}.png")
 
-                # Save the images
-                cv2.imwrite(left_filename, left_frame)
-                cv2.imwrite(right_filename, right_frame)
+                # Save images using Pillow
+                save_image(left_frame, left_filename)
+                save_image(right_frame, right_filename)
 
                 # Print the full absolute path of the saved images
                 print(f"Images saved at:\nLeft: {os.path.abspath(left_filename)}\nRight: {os.path.abspath(right_filename)}")
