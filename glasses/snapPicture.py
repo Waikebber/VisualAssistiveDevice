@@ -1,4 +1,3 @@
-import keyboard  # To handle keypresses
 import cv2
 from picamera2 import Picamera2
 import time
@@ -23,8 +22,10 @@ print("Cameras started successfully.")
 # Main loop
 try:
     while True:
-        # Check for 'p' key press to capture images
-        if keyboard.is_pressed('p'):
+        # Prompt for keypress
+        key = input("Press 'p' to take a photo or 'q' to quit: ")
+
+        if key == 'p':
             print("Photo capture initiated...")
 
             # Capture frames from both cameras
@@ -41,11 +42,7 @@ try:
                 cv2.imwrite(right_filename, right_frame)
                 print(f"Images saved as {left_filename} and {right_filename}")
 
-            # To avoid multiple captures on a single press, wait for release
-            keyboard.wait('p', suppress=True)
-
-        # Check for 'q' key press to quit
-        if keyboard.is_pressed('q'):
+        elif key == 'q':
             print("Quit key pressed. Exiting...")
             break
 
