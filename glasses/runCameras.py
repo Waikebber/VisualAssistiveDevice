@@ -35,7 +35,7 @@ while True:
 
     # Break the loop if 'q' is pressed
     if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+        break  
 
 # Stop cameras and close windows
 cam0.stop()
