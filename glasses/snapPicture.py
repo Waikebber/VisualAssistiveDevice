@@ -2,7 +2,9 @@ from picamera2 import Picamera2
 import time
 import os
 from PIL import Image
-import numpy as np
+
+# Define the base folder where images will be stored
+base_folder = "pics"
 
 img_size = (640, 480)
 
@@ -20,7 +22,7 @@ left_cam.start()
 right_cam.start()
 print("Cameras started successfully.")
 
-# Convert numpy array to image using PIL
+# Convert numpy array to image using Pillow
 def save_image(image_array, filename):
     image = Image.fromarray(image_array)  # Convert from numpy array to PIL Image
     image.save(filename)  # Save the image using Pillow
@@ -34,15 +36,23 @@ try:
         if key == 'p':
             print("Photo capture initiated...")
 
+            # Create a new folder with the current timestamp under the base folder
+            timestamp = time.strftime("%Y%m%d-%H%M%S")
+            save_folder = os.path.join(base_folder, timestamp)
+
+            # Create the folder if it doesn't exist
+            if not os.path.exists(save_folder):
+                os.makedirs(save_folder)
+                print(f"Directory {save_folder} created.")
+
             # Capture frames from both cameras
             left_frame = left_cam.capture_array()
             right_frame = right_cam.capture_array()
 
             if left_frame is not None and right_frame is not None:
-                # Save the captured frames
-                timestamp = time.strftime("%Y%m%d-%H%M%S")
-                left_filename = f"left_{timestamp}.png"
-                right_filename = f"right_{timestamp}.png"
+                # Define filenames for saving images
+                left_filename = os.path.join(save_folder, f"left_{timestamp}.png")
+                right_filename = os.path.join(save_folder, f"right_{timestamp}.png")
 
                 # Save images using Pillow
                 save_image(left_frame, left_filename)
