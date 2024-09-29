@@ -1,84 +1,43 @@
-import cv2
+"""
+This file runs both cameras connected to the rasberry pi through a python file. 
+The primary usage of the file is for testing camera connections.
+"""
+
+# Make sure that the following commands have been ran for rasberry pi usage:
+#   sudo apt update
+#   sudo apt install python3-opencv
+#   sudo apt install libopencv-dev
+#   sudo apt install -y python3-libcamera python3-kms++ python3-picamera2
+
 from picamera2 import Picamera2
-from ultralytics import YOLO
-import time
+import cv2
 
-# Load YOLO model
-print("Loading YOLO model...")
-model = YOLO('yolov8n.pt')  # YOLO nano version for lower resource usage
-print("YOLO model loaded successfully.")
+# Create Picamera2 objects for both cameras
+cam0 = Picamera2(0)  # Camera in cam0 port
+cam1 = Picamera2(1)  # Camera in cam1 port
 
-# Initialize stereo cameras using Picamera2
-print("Initializing cameras...")
-left_cam = Picamera2(0)  # Camera in cam0 port (left camera)
-right_cam = Picamera2(1)  # Camera in cam1 port (right camera)
+# Configure and start both cameras
+cam0.configure(cam0.create_preview_configuration())
+cam1.configure(cam1.create_preview_configuration())
 
-# Configure both cameras
-left_cam.configure(left_cam.create_preview_configuration(main={"format": "RGB888"}))
-right_cam.configure(right_cam.create_preview_configuration(main={"format": "RGB888"}))
+cam0.start()
+cam1.start()
 
-# Start the cameras
-left_cam.start()
-right_cam.start()
-print("Cameras started successfully.")
-
-# Function to save detection results on the frame
-def process_frame_and_save(frame, filename):
-    print(f"Processing frame and saving to {filename}...")
-    # Convert the frame from RGB to BGR for OpenCV/YOLO compatibility
-    frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-    
-    # Run the YOLO detection model on the frame
-    results = model(frame_bgr)
-    
-    # Plot the results (bounding boxes, etc.)
-    result_img = results[0].plot()
-    
-    # Save the result to a file
-    cv2.imwrite(filename, result_img)
-    print(f"Classified image saved as {filename}")
-
+# Function to capture frames from both cameras and display them
 while True:
     # Capture frames from both cameras
-    left_frame = left_cam.capture_array()
-    right_frame = right_cam.capture_array()
+    frame0 = cam0.capture_array()
+    frame1 = cam1.capture_array()
 
-    if left_frame is not None and right_frame is not None:
-        # Combine the frames side by side for display
-        combined = cv2.hconcat([left_frame, right_frame])
-        
-        # For debugging, print that frames are being captured
-        print("Displaying real-time video. Press 'p' to take a picture or 'q' to quit.")
-        
-        # Display the combined frame in real-time
-        cv2.imshow('Stereo Camera', combined)
+    # Display the frames
+    cv2.imshow("Camera 0", frame0)
+    cv2.imshow("Camera 1", frame1)
 
-    # Check for keypresses
-    key = cv2.waitKey(1) & 0xFF
-
-    # Debugging print statements for keypresses
-    if key != 255:  # 255 means no key was pressed
-        print(f"Key pressed: {chr(key)}")
-
-    if key == ord('p'):
-        print("Photo capture initiated...")
-        # Take a photo and classify it, then save the result
-        if left_frame is not None and right_frame is not None:
-            # Save classified frames with YOLO detections as PNG files
-            timestamp = time.strftime("%Y%m%d-%H%M%S")
-            left_filename = f"left_classified_{timestamp}.png"
-            right_filename = f"right_classified_{timestamp}.png"
-            
-            # Process and save each frame
-            process_frame_and_save(left_frame, left_filename)
-            process_frame_and_save(right_frame, right_filename)
-
-    if key == ord('q'):
-        print("Quit key pressed. Exiting...")
+    # Break the loop if 'q' is pressed
+    if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
-# Stop the cameras and close windows
-left_cam.stop()
-right_cam.stop()
+# Stop cameras and close windows
+cam0.stop()
+cam1.stop()
 cv2.destroyAllWindows()
-print("Cameras stopped and windows closed. Program exited successfully.")
