@@ -5,12 +5,6 @@ from PIL import Image
 import numpy as np
 
 img_size = (640, 480)
-save_path = "/pics/"
-
-# Create the directory if it doesn't exist
-if not os.path.exists(save_path):
-    os.makedirs(save_path)
-    print(f"Directory {save_path} created.")
 
 # Initialize stereo cameras using Picamera2
 print("Initializing cameras...")
@@ -47,8 +41,8 @@ try:
             if left_frame is not None and right_frame is not None:
                 # Save the captured frames
                 timestamp = time.strftime("%Y%m%d-%H%M%S")
-                left_filename = os.path.join(save_path, f"left_{timestamp}.png")
-                right_filename = os.path.join(save_path, f"right_{timestamp}.png")
+                left_filename = f"left_{timestamp}.png"
+                right_filename = f"right_{timestamp}.png"
 
                 # Save images using Pillow
                 save_image(left_frame, left_filename)
