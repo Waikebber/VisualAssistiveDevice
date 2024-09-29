@@ -1,3 +1,8 @@
+"""
+    This file runs both cameras and takes images on button press (p).
+    The program exits on button press (q).
+"""
+
 from picamera2 import Picamera2
 import time
 import os
