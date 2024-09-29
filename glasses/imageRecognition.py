@@ -3,6 +3,9 @@ from picamera2 import Picamera2
 from ultralytics import YOLO
 import time
 
+# Reduce OpenCV's thread usage to avoid overload
+cv2.setNumThreads(1)
+
 # Load YOLO model
 print("Loading YOLO model...")
 model = YOLO('yolov8n.pt')  # YOLO nano version for lower resource usage
@@ -13,9 +16,9 @@ print("Initializing cameras...")
 left_cam = Picamera2(0)  # Camera in cam0 port (left camera)
 right_cam = Picamera2(1)  # Camera in cam1 port (right camera)
 
-# Configure both cameras
-left_cam.configure(left_cam.create_preview_configuration(main={"format": "RGB888"}))
-right_cam.configure(right_cam.create_preview_configuration(main={"format": "RGB888"}))
+# Configure both cameras with a lower resolution to reduce resource usage
+left_cam.configure(left_cam.create_preview_configuration(main={"size": (640, 480), "format": "RGB888"}))
+right_cam.configure(right_cam.create_preview_configuration(main={"size": (640, 480), "format": "RGB888"}))
 
 # Start the cameras
 left_cam.start()
