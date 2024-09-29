@@ -43,20 +43,9 @@ while True:
     left_frame = left_cam.capture_array()
     right_frame = right_cam.capture_array()
 
-    if left_frame is not None and right_frame is not None:
-        # Combine the frames side by side for display
-        combined = cv2.hconcat([left_frame, right_frame])
-        
-        # For debugging, print that frames are being captured
-        print("Displaying real-time video. Press 'p' to take a picture or 'q' to quit.")
-        
-        # Display the combined frame in real-time
-        cv2.imshow('Stereo Camera', combined)
-
     # Check for keypresses
     key = cv2.waitKey(1) & 0xFF
 
-    # Debugging print statements for keypresses
     if key != 255:  # 255 means no key was pressed
         print(f"Key pressed: {chr(key)}")
 
@@ -77,8 +66,7 @@ while True:
         print("Quit key pressed. Exiting...")
         break
 
-# Stop the cameras and close windows
+# Stop the cameras
 left_cam.stop()
 right_cam.stop()
-cv2.destroyAllWindows()
-print("Cameras stopped and windows closed. Program exited successfully.")
+print("Cameras stopped. Program exited successfully.")
