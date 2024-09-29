@@ -44,9 +44,12 @@ try:
                 left_filename = os.path.join(save_path, f"left_{timestamp}.png")
                 right_filename = os.path.join(save_path, f"right_{timestamp}.png")
 
+                # Save the images
                 cv2.imwrite(left_filename, left_frame)
                 cv2.imwrite(right_filename, right_frame)
-                print(f"Images saved as {left_filename} and {right_filename}")
+
+                # Print the full absolute path of the saved images
+                print(f"Images saved at:\nLeft: {os.path.abspath(left_filename)}\nRight: {os.path.abspath(right_filename)}")
 
         elif key == 'q':
             print("Quit key pressed. Exiting...")
