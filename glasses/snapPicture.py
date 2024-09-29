@@ -1,9 +1,15 @@
 import cv2
 from picamera2 import Picamera2
 import time
+import os
 
-img_size =  (640, 480)
-save_path = "./pics/"
+img_size = (640, 480)
+save_path = "/pics/"
+
+# Create the directory if it doesn't exist
+if not os.path.exists(save_path):
+    os.makedirs(save_path)
+    print(f"Directory {save_path} created.")
 
 # Initialize stereo cameras using Picamera2
 print("Initializing cameras...")
@@ -35,8 +41,8 @@ try:
             if left_frame is not None and right_frame is not None:
                 # Save the captured frames
                 timestamp = time.strftime("%Y%m%d-%H%M%S")
-                left_filename = f"{save_path}left_{timestamp}.png"
-                right_filename = f"{save_path}right_{timestamp}.png"
+                left_filename = os.path.join(save_path, f"left_{timestamp}.png")
+                right_filename = os.path.join(save_path, f"right_{timestamp}.png")
 
                 cv2.imwrite(left_filename, left_frame)
                 cv2.imwrite(right_filename, right_frame)
