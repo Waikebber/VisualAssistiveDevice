@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Update and install python3-venv if not already installed
-sudo apt install -y python3-venv libcamera-apps libcamera-dev
+sudo apt install -y python3-venv libcamera-apps libcamera-dev python3-libcamera python3-kms++ python3-picamera2
 
 # Create the virtual environment
 python3 -m venv yolo-env
