@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Update and install python3-venv if not already installed
-sudo apt install -y python3-venv
+sudo apt install -y python3-venv libcamera-apps libcamera-dev
 
 # Create the virtual environment
 python3 -m venv yolo-env
@@ -30,6 +30,7 @@ print('All packages installed successfully!')
 
 # Deactivate the virtual environment
 deactivate
+python3 -m venv --system-site-packages yolo-env
 
 echo "Setup complete. Virtual environment created and packages installed."
 exho "Activate venv with'source yolo-env/bin/activate'"
