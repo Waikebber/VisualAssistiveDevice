@@ -7,5 +7,6 @@ Then run ```./setup_env.sh``` in the terminal in the same terminal. This should 
 
 
 ## StereoVision Sources
-https://learnopencv.com/camera-calibration-using-opencv/
-https://learnopencv.com/depth-perception-using-stereo-camera-python-c/
+https://learnopencv.com/camera-calibration-using-opencv/ <br>
+https://learnopencv.com/depth-perception-using-stereo-camera-python-c/<br>
+https://github.com/savnani5/Depth-Estimation-using-Stereovision <br>
