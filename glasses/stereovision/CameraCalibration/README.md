@@ -1,33 +1,28 @@
 # Camera Calibration Explanation
-
-This directory contains all the necessary files and images to perform camera calibration using OpenCV. Camera calibration is crucial for removing distortion from images, which occurs due to the lens' curvature. By taking multiple images of a chessboard, we can compute the intrinsic parameters of the camera.
+This project performs camera calibration using OpenCV. Calibration is essential for removing distortion from camera lenses, especially for stereo vision setups.<br>
+For a detailed explanation of the calibration process, refer to the source blog here. Much of this is derived from a [YouTube video](https://www.youtube.com/watch?v=uKDAVcSaNZA).
 
 ## Chessboard
-A chessboard (checkerboard) is used as the object for calibration due to its well-defined geometry. The corner points of the squares serve as reference points to correlate the real-world 3D coordinates with 2D image coordinates. An initial image is captured in front of the board, which helps to establish this correlation.
+A chessboard, or checkerboard, is used for camera calibration. An initial image of the chessboard is captured, which allows for a correlation between real-world 3D coordinates and their corresponding 2D points in the image. By identifying the corners of the chessboard in multiple images, the camera's intrinsic and extrinsic parameters can be calculated.
 
 ## /images/
-This directory stores all the chessboard images used for calibration. The camera calibration script iterates through these images to detect the corner points of the chessboard in each one. The more images used from different angles, the more accurate the calibration.
+This directory stores your images of the chessboard that are used for calibration. The script processes the images in this directory to identify the coordinates of the box corners in each image. It contains two subdirectories:
+- stereoLeft: Stores images captured from the left camera.
+- stereoRight: Stores images captured from the right camera.
+- 
+These images are processed to determine the camera's distortion and projection matrices.
 
 ## Scripts
-### cameraCalibration.py
-The original OpenCV code can be found [here](https://github.com/spmallick/learnopencv/blob/master/CameraCalibration/cameraCalibration.py).
-
-This script detects the corner points in the images and computes the camera matrix, distortion coefficients, rotation, and translation vectors. These values are used to model the camera’s intrinsic and extrinsic properties.
-
+### ```cameraCalibration.py```
+This script handles the calibration of a single camera using chessboard images. It identifies chessboard corners, computes the camera matrix and distortion coefficients, and then saves this calibration data to an XML file called ```stereoMap.xml```.
 Steps include:
 1. Reading chessboard images.
 2. Detecting chessboard corners in each image.
 3. Performing the calibration to calculate camera parameters.
+4. Saving camera calibration parameter for stereovision.
 
-### cameraCalibrationWithUndistortion.py
-The original OpenCV code can be found [here](https://github.com/spmallick/learnopencv/blob/master/CameraCalibration/cameraCalibrationWithUndistortion.py).
-
-This script goes a step further by applying the calibration results to undistort the images. It removes the distortion caused by the camera lens, producing geometrically corrected images.
-
-Steps include:
-1. Loading the camera calibration parameters (camera matrix and distortion coefficients).
-2. Undistorting each image using these parameters.
-3. Displaying the original and corrected images side by side.
+### ```calibration.py```
+This script includes functions for undistorting and rectifying the images based on the calibration metrics obtained earlier. The main function, ```undistortRectify(frameR, frameL)```, takes in stereo images (left and right) and corrects distortion using the calibration data stored in ```stereoMap.xml```. After rectification, the stereo images are ready for 3D depth estimation.
 
 ---
 
