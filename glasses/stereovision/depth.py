@@ -33,4 +33,60 @@ def find_depth(right_point, left_point, frame_right, frame_left, baseline, f, al
     zDepth = (f_pixel * baseline) / disparity
     
     return abs(zDepth)
+
+def compute_depth_map(frame_right, frame_left, baseline, f, alpha):
+    """Compute the depth map for the entire stereo image pair.
+    
+    Args:
+        frame_right: The right image.
+        frame_left: The left image.
+        baseline: The baseline distance between the two cameras.
+        f: The focal length of the cameras.
+        alpha: The skew angle of the cameras.
+        
+    Returns:
+        The depth map of the scene.
+    """
+    height_right, width_right, depth_right = frame_right.shape
+    height_left, width_left, depth_left = frame_left.shape
+    
+    # Check that the dimensions match
+    if width_right != width_left or height_right != height_left:
+        print("Image dimensions do not match.")
+        return None
+    
+    # Calculate focal length in pixels
+    f_pixel = (width_right * 0.5) / np.tan(alpha * 0.5 * np.pi / 180)
+    
+    # Convert the images to grayscale for disparity computation
+    gray_left = cv2.cvtColor(frame_left, cv2.COLOR_BGR2GRAY)
+    gray_right = cv2.cvtColor(frame_right, cv2.COLOR_BGR2GRAY)
+    
+    # Use StereoSGBM to compute the disparity map
+    stereo = cv2.StereoSGBM_create(
+        minDisparity=0,
+        numDisparities=16 * 5,  # Must be divisible by 16
+        blockSize=5,
+        P1=8 * 3 * 5 ** 2,
+        P2=32 * 3 * 5 ** 2,
+        disp12MaxDiff=1,
+        uniquenessRatio=10,
+        speckleWindowSize=100,
+        speckleRange=32,
+        preFilterCap=63,
+        mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY
+    )
+    
+    # Compute the disparity map
+    disparity_map = stereo.compute(gray_left, gray_right).astype(np.float32) / 16.0
+    
+    # Avoid division by zero
+    disparity_map[disparity_map == 0] = 0.1
+    disparity_map[disparity_map == -1] = 0.1
+    
+    # Compute the depth map using the disparity map
+    depth_map = (f_pixel * baseline) / disparity_map
+    
+    return depth_map
+
     
