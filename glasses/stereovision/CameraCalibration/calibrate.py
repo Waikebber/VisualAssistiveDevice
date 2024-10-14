@@ -13,7 +13,7 @@ stereoMapR_x = cv_file.getNode('stereoMapR_x').mat()
 stereoMapR_y = cv_file.getNode('stereoMapR_y').mat()
 
 
-def undistortRectify(frameR, frameL):
+def undistort_rectify(frameR, frameL):
     """Undistort and rectify images using stereo calibration parameters.
     """
     undistortedL = cv2.remap(frameL, stereoMapL_x, stereoMapL_y, cv2.INTER_LANCZOS4, cv2.BORDER_CONSTANT, 0)
