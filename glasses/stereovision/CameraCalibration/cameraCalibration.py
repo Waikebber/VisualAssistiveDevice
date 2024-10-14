@@ -13,6 +13,7 @@ import glob
 # Defining the dimensions of checkerboard
 CHECKERBOARD = (6,9)
 frameSize = (640,480)
+SHOW_BOARDS = True
 
 # Termination Criteria
 criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
@@ -67,10 +68,11 @@ for imgLeft, imgRight in zip(imagesLeft, imagesRight):
         # Draw and display the corners
         cv2.drawChessboardCorners(imgL, CHECKERBOARD, cornersL,retL)
         cv2.drawChessboardCorners(imgR, CHECKERBOARD, cornersR,retR)
-    
-        cv2.imshow('img left',imgL)
-        cv2.imshow('img right',imgR)
-        cv2.waitKey(1000)
+
+        if SHOW_BOARDS:
+            cv2.imshow('img left',imgL)
+            cv2.imshow('img right',imgR)
+            cv2.waitKey(1000)
 
 ######################### CALIBRATION #######################################
 ## Undistortion
