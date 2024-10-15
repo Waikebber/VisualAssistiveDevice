@@ -13,6 +13,10 @@ cam1 = Picamera2(1)  # Camera in cam1 port
 cam0.configure(cam0.create_preview_configuration())
 cam1.configure(cam1.create_preview_configuration())
 
+# Set Whitebalance
+cam0.set_controls({"AwbEnable":True})
+cam1.set_controls({"AwbEnable":True})
+
 cam0.start()
 cam1.start()
 
@@ -21,6 +25,10 @@ while True:
     # Capture frames from both cameras
     frame0 = cam0.capture_array()
     frame1 = cam1.capture_array()
+    
+    # Change bands from BGR to RGB
+    frame0 = cv2.cvtColor(frame0, cv2.COLOR_RGB2BGR)
+    frame1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2BGR)
 
     # Display the frames
     cv2.imshow("Camera 0", frame0)
