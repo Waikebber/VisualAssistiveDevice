@@ -22,6 +22,10 @@ right_cam = Picamera2(1)  # Camera in cam1 port (right camera)
 left_cam.configure(left_cam.create_preview_configuration(main={"size": img_size, "format": "RGB888"}))
 right_cam.configure(right_cam.create_preview_configuration(main={"size": img_size, "format": "RGB888"}))
 
+# Set white balance
+left_cam.set_controls({"AwbEnable":True})
+right_cam.set_controls({"AwbEnable":True})
+
 # Set white balance to auto
 left_cam.set_controls({"AwbMode": "auto"})
 right_cam.set_controls({"AwbMode": "auto"})
