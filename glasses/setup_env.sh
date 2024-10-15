@@ -18,7 +18,7 @@ pip install ultralytics
 
 echo "Installing Picamera2..."
 sudo apt install -y libcamera-apps libcamera-dev
-pip install picamera2
+sudo apt install python3-picamera2
 
 echo "Installing Pillow..."
 pip install Pillow
