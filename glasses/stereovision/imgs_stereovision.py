@@ -5,9 +5,25 @@ from depth import compute_depth_map
 from CameraCalibration.calibration import undistort_rectify
 
 ## CONSTANTS
-BASELINE = 0.1 # Baseline distance between the two cameras (meters)
-F = 700        # Focal length of the cameras
-ALPHA = 90     # Skew angle of the cameras
+##################### CAMERA SPECS ##############################
+camera_specs = {
+    "CMOS_size": "1/4 inch",
+    "aperture": 2.4,
+    "resolution": (3280, 2464),  # width, height in pixels
+    "focal_length": 2.6,  # in mm
+    "field_of_view": {
+        "diagonal": 83,  # in degrees
+        "horizontal": 73,  # in degrees
+        "vertical": 50  # in degrees
+    },
+    "distortion": "< 1%",
+    "baseline_length": 60  # in mm
+}
+
+F = camera_specs["focal_length"]
+BASELINE = camera_specs["baseline_length"]
+ALPHA = camera_specs["field_of_view"]["horizontal"]
+################################################################
 
 IMG_LEFT = 'left_image.png'
 IMG_RIGHT = 'right_image.png'
