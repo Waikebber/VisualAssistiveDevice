@@ -5,13 +5,15 @@ The primary usage of the file is for testing camera connections.
 from picamera2 import Picamera2
 import cv2
 
+img_size = (640, 480)
+
 # Create Picamera2 objects for both cameras
 cam0 = Picamera2(0)  # Camera in cam0 port
 cam1 = Picamera2(1)  # Camera in cam1 port
 
 # Configure and start both cameras
-cam0.configure(cam0.create_preview_configuration())
-cam1.configure(cam1.create_preview_configuration())
+cam0.configure(cam0.create_preview_configuration(main={"size": img_size, "format": "RGB888"}))
+cam1.configure(cam1.create_preview_configuration(main={"size": img_size, "format": "RGB888"}))
 
 # Set Whitebalance
 cam0.set_controls({"AwbEnable":True})
@@ -26,9 +28,9 @@ while True:
     frame0 = cam0.capture_array()
     frame1 = cam1.capture_array()
     
-    # Change bands from BGR to RGB
-    frame0 = cv2.cvtColor(frame0, cv2.COLOR_RGB2BGR)
-    frame1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2BGR)
+    # # Change bands from BGR to RGB
+    # frame0 = cv2.cvtColor(frame0, cv2.COLOR_RGB2BGR)
+    # frame1 = cv2.cvtColor(frame1, cv2.COLOR_RGB2BGR)
 
     # Display the frames
     cv2.imshow("Camera 0", frame0)
