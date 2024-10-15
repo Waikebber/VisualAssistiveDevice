@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Update system packages
-sudo apt update && sudo apt full-upgrade -y
-
 # Install necessary libraries
 sudo apt install -y python3-venv libcamera-apps libcamera-dev python3-libcamera python3-kms++ python3-picamera2
 
