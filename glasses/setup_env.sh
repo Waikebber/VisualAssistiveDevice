@@ -1,11 +1,10 @@
 #!/bin/bash
 
-# Update and install necessary libraries
-sudo apt update && sudo apt full-upgrade -y
+# install necessary librariesy
 sudo apt install -y python3-venv libcamera-apps libcamera-dev python3-libcamera python3-kms++ python3-picamera2 python3-pillow
 
 # Create the virtual environment
-python3 -m venv yolo-env
+python3 -m venv --system-site-packages yolo-env
 
 # Activate the virtual environment
 source yolo-env/bin/activate
