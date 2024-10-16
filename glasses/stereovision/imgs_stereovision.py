@@ -1,7 +1,7 @@
 import sys, os
 import cv2
 import numpy as np
-from depth import compute_depth_map
+from depth import compute_depth_map, compute_disparity_map
 from CameraCalibration.calibrate import undistort_rectify
 
 ## CONSTANTS
@@ -36,6 +36,15 @@ def save_depth_map(depth_map, output_path='depth_map.png'):
     cv2.imwrite(output_path, depth_map_vis)
     print(f"Depth map saved to {output_path}")
 
+
+def save_disparity_map(disparity_map, output_path='disparity_map.png'):
+    """Save the disparity map to a file."""
+    disparity_map_vis = cv2.normalize(disparity_map, None, 0, 255, cv2.NORM_MINMAX)
+    disparity_map_vis = np.uint8(disparity_map_vis)
+    cv2.imwrite(output_path, disparity_map_vis)
+    print(f"Disparity map saved to {output_path}")
+
+
 def save_rectified_images(left_image, right_image, output_path_left='rectified_left.png', output_path_right='rectified_right.png'):
     """Save the rectified left and right images."""
     cv2.imwrite(output_path_left, left_image)
@@ -60,8 +69,14 @@ def main():
     # Save rectified images
     save_rectified_images(undistortedL, undistortedR)
 
-    # Compute depth map
-    depth_map = compute_depth_map(undistortedR, undistortedL, BASELINE, F, ALPHA)
+    # Compute disparity map
+    disparity_map = compute_disparity_map(undistortedR, undistortedL)
+
+    # Save disparity map
+    save_disparity_map(disparity_map)
+
+    # Compute depth map using the disparity map
+    depth_map = compute_depth_map(disparity_map, BASELINE, F)
 
     # Save depthmap
     save_depth_map(depth_map)
