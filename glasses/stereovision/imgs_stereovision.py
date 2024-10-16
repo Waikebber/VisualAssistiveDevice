@@ -2,7 +2,7 @@ import sys, os
 import cv2
 import numpy as np
 from depth import compute_depth_map
-from CameraCalibration.calibration import undistort_rectify
+from CameraCalibration.calibrate import undistort_rectify
 
 ## CONSTANTS
 ##################### CAMERA SPECS ##############################
@@ -25,8 +25,8 @@ BASELINE = camera_specs["baseline_length"]
 ALPHA = camera_specs["field_of_view"]["horizontal"]
 ################################################################
 
-IMG_LEFT = 'left_image.png'
-IMG_RIGHT = 'right_image.png'
+IMG_LEFT = 'testImgs/test1/left.png'
+IMG_RIGHT = 'testImgs/test1/right.png'
 
 
 def main():
