@@ -39,15 +39,12 @@ for imgLeft, imgRight in zip(imagesLeft, imagesRight):
     grayR = cv2.cvtColor(imgR, cv2.COLOR_BGR2GRAY)
     
     # Find the chess board corners
-    # If desired number of corners are found in the image then ret = true
-    retL, cornersL = cv2.findChessboardCorners(grayL, CHECKERBOARD, None)
-    retR, cornersR = cv2.findChessboardCorners(grayR, CHECKERBOARD, None)
-
-    ## Can Try This, not sure what it does
-    # retL, cornersL = cv2.findChessboardCorners(grayL, CHECKERBOARD, cv2.CALIB_CB_ADAPTIVE_THRESH+
-    # 	cv2.CALIB_CB_FAST_CHECK+cv2.CALIB_CB_NORMALIZE_IMAGE)
-    # retR, cornersR = cv2.findChessboardCorners(grayR, CHECKERBOARD, cv2.CALIB_CB_ADAPTIVE_THRESH+
-    # 	cv2.CALIB_CB_FAST_CHECK+cv2.CALIB_CB_NORMALIZE_IMAGE)
+    # retL, cornersL = cv2.findChessboardCorners(grayL, CHECKERBOARD, None)
+    # retR, cornersR = cv2.findChessboardCorners(grayR, CHECKERBOARD, None)
+    retL, cornersL = cv2.findChessboardCorners(grayL, CHECKERBOARD, cv2.CALIB_CB_ADAPTIVE_THRESH+
+    	cv2.CALIB_CB_FAST_CHECK+cv2.CALIB_CB_NORMALIZE_IMAGE)
+    retR, cornersR = cv2.findChessboardCorners(grayR, CHECKERBOARD, cv2.CALIB_CB_ADAPTIVE_THRESH+
+    	cv2.CALIB_CB_FAST_CHECK+cv2.CALIB_CB_NORMALIZE_IMAGE)
 
     
     """
