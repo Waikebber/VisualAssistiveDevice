@@ -36,22 +36,12 @@ def save_depth_map(depth_map, output_path='depth_map.png'):
     cv2.imwrite(output_path, depth_map_vis)
     print(f"Depth map saved to {output_path}")
 
-
 def save_rectified_images(left_image, right_image, output_path_left='rectified_left.png', output_path_right='rectified_right.png'):
     """Save the rectified left and right images."""
     cv2.imwrite(output_path_left, left_image)
     cv2.imwrite(output_path_right, right_image)
     print(f"Rectified left image saved to {output_path_left}")
     print(f"Rectified right image saved to {output_path_right}")
-
-
-def visualize_rectified(left_image, right_image):
-    """Visualize rectified images side by side."""
-    # Stack the rectified images side by side
-    combined_image = np.hstack((left_image, right_image))
-    cv2.imshow("Rectified Left and Right Images", combined_image)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
 
 
 def main():
@@ -66,9 +56,6 @@ def main():
 
     # Undistort and rectify the images
     undistortedR, undistortedL = undistort_rectify(frame_right, frame_left)
-
-    # Visualize rectified images
-    visualize_rectified(undistortedL, undistortedR)
 
     # Save rectified images
     save_rectified_images(undistortedL, undistortedR)
