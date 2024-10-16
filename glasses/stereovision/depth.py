@@ -35,15 +35,7 @@ def find_depth(right_point, left_point, frame_right, frame_left, baseline, f, al
     return abs(zDepth)
 
 def compute_disparity_map(frame_right, frame_left):
-    """Compute the disparity map for the stereo image pair.
-    
-    Args:
-        frame_right: The right image.
-        frame_left: The left image.
-        
-    Returns:
-        The disparity map of the scene.
-    """
+    """Compute the disparity map for the stereo image pair."""
     height_right, width_right, depth_right = frame_right.shape
     height_left, width_left, depth_left = frame_left.shape
     
@@ -56,16 +48,16 @@ def compute_disparity_map(frame_right, frame_left):
     gray_left = cv2.cvtColor(frame_left, cv2.COLOR_BGR2GRAY)
     gray_right = cv2.cvtColor(frame_right, cv2.COLOR_BGR2GRAY)
     
-    # Use StereoSGBM to compute the disparity map
+    # Use StereoSGBM to compute the disparity map with adjusted parameters
     stereo = cv2.StereoSGBM_create(
         minDisparity=0,
-        numDisparities=16 * 5,  # Must be divisible by 16
-        blockSize=5,
-        P1=8 * 3 * 5 ** 2,
-        P2=32 * 3 * 5 ** 2,
+        numDisparities=16 * 6,  # Increase to cover larger depth range
+        blockSize=11,  # Increase block size to reduce noise
+        P1=8 * 3 * 11 ** 2,
+        P2=32 * 3 * 11 ** 2,
         disp12MaxDiff=1,
-        uniquenessRatio=10,
-        speckleWindowSize=100,
+        uniquenessRatio=15,  # Increase to filter out bad matches
+        speckleWindowSize=200,  # Increase to reduce speckle noise
         speckleRange=32,
         preFilterCap=63,
         mode=cv2.STEREO_SGBM_MODE_SGBM_3WAY
