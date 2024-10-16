@@ -8,6 +8,7 @@ from picamera2 import Picamera2
 import time
 import os
 from PIL import Image
+import cv2
 
 # Define the base folder where images will be stored
 ROOT = "images"
@@ -36,13 +37,20 @@ print("Cameras started successfully.")
 def save_image(image_array, filename):
     image = Image.fromarray(image_array)  # Convert from numpy array to PIL Image
     image.save(filename)  # Save the image using Pillow
-
+print("Press 'p' to take a photo or 'q' to quit: ")
 # Main loop
 try:
     count = 0
     while count < IMGS_NEEDED:
+        # Capture frames from both cameras
+        left_frame = left_cam.capture_array()
+        right_frame = right_cam.capture_array()
+
+        cv2.imshow("Left Camera", left_frame)
+        cv2.imshow("Right Camera", right_frame)
+                
         # Prompt for keypress
-        key = input("Press 'p' to take a photo or 'q' to quit: ")
+        key = cv2.waitKey(1) & 0xFF
 
         # Set and Create the Save Directories
         save_folder_left = os.path.join(ROOT, "stereoLeft")
@@ -53,15 +61,10 @@ try:
         if not os.path.exists(save_folder_right):
             os.makedirs(save_folder_right)
             print(f"Directory {save_folder_right} created.")
-
-        
-        if key == 'p':
-            print("Photo capture initiated...")
             
-            # Capture frames from both cameras
-            left_frame = left_cam.capture_array()
-            right_frame = right_cam.capture_array()
-
+        
+        if key == ord('p'):
+            print("Photo capture initiated...")
             if left_frame is not None and right_frame is not None:
                 # Define filenames for saving images
                 timestamp = time.strftime("%Y%m%d-%H%M%S")
@@ -77,7 +80,8 @@ try:
                 
                 count = count + 1
                 print(f"Taken {count} of {IMGS_NEEDED}")
-        elif key == 'q':
+                print("Press 'p' to take a photo or 'q' to quit: ")
+        elif key == ord('q'):
             print("Quit key pressed. Exiting...")
             break
 
