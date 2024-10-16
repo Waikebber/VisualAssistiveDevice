@@ -69,8 +69,11 @@ def compute_disparity_map(frame_right, frame_left):
     # Avoid division by zero
     disparity_map[disparity_map == 0] = 0.1
     disparity_map[disparity_map == -1] = 0.1
+
+    # Apply a bilateral filter to smooth disparity map
+    disparity_map_filtered = cv2.bilateralFilter(disparity_map, 9, 75, 75)
     
-    return disparity_map
+    return disparity_map_filtered
 
 
 def compute_depth_map(disparity_map, baseline, f_pixel):
