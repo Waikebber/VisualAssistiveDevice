@@ -28,6 +28,12 @@ ALPHA = camera_specs["field_of_view"]["horizontal"]
 IMG_LEFT = 'testImgs/test1/left.png'
 IMG_RIGHT = 'testImgs/test1/right.png'
 
+def save_depth_map(depth_map, output_path='depth_map.png'):
+    """Save the depth map to a file."""
+    depth_map_vis = cv2.normalize(depth_map, None, 0, 255, cv2.NORM_MINMAX)
+    depth_map_vis = np.uint8(depth_map_vis)
+    cv2.imwrite(output_path, depth_map_vis)
+    print(f"Depth map saved to {output_path}")
 
 def main():
     # Load stereo images
@@ -40,13 +46,8 @@ def main():
     # Compute depth map
     depth_map = compute_depth_map(undistortedR, undistortedL, BASELINE, F, ALPHA)
     
-    # Visualize the depth map
-    depth_map_vis = cv2.normalize(depth_map, None, 0, 255, cv2.NORM_MINMAX)
-    depth_map_vis = np.uint8(depth_map_vis)
-    
-    cv2.imshow('Depth Map', depth_map_vis)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # Save depthmap
+    save_depth_map(depth_map)
 
 # Entry point
 if __name__ == '__main__':
