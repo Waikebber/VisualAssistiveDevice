@@ -1,3 +1,4 @@
+
 import sys, os
 import cv2
 import numpy as np
@@ -25,9 +26,14 @@ BASELINE = camera_specs["baseline_length"]
 ALPHA = camera_specs["field_of_view"]["horizontal"]
 ################################################################
 
-IMG_LEFT = 'testImgs/test1/left.png'
-IMG_RIGHT = 'testImgs/test1/right.png'
+IMG_LEFT = 'testImgs/test4/left.png'
+IMG_RIGHT = 'testImgs/test4/right.png'
 
+
+def save_colored_depth_map(colored_depth_map, output_path='colored_depth_map.png'):
+    """Save the depth map to a file."""
+    cv2.imwrite(output_path, colored_depth_map)
+    print(f"Colored depth map saved to {output_path}")
 
 def save_depth_map(depth_map, output_path='depth_map.png'):
     """Save the depth map to a file."""
@@ -80,7 +86,14 @@ def main():
 
     # Save depthmap
     save_depth_map(depth_map)
-
+    
+    depth_map_vis = cv2.normalize(depth_map, None, 0, 255, cv2.NORM_MINMAX)
+    depth_map_vis = np.uint8(depth_map_vis) 
+    
+    
+    colored_depth_map = cv2.applyColorMap(depth_map_vis, cv2.COLORMAP_TURBO)
+    
+    save_colored_depth_map(colored_depth_map)
 
 # Entry point
 if __name__ == '__main__':
