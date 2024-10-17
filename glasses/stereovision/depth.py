@@ -51,8 +51,8 @@ def compute_disparity_map(frame_right, frame_left):
     # Use StereoSGBM to compute the disparity map with adjusted parameters
     stereo = cv2.StereoSGBM_create(
         minDisparity=0,
-        numDisparities=16 * 6,  # Increase to cover larger depth range
-        blockSize=11,  # Increase block size to reduce noise
+        numDisparities=16 * 10,  # Increase to cover larger depth range
+        blockSize=16,  # Increase block size to reduce noise
         P1=8 * 3 * 11 ** 2,
         P2=32 * 3 * 11 ** 2,
         disp12MaxDiff=1,
@@ -71,9 +71,9 @@ def compute_disparity_map(frame_right, frame_left):
     disparity_map[disparity_map == -1] = 0.1
 
     # Apply a bilateral filter to smooth disparity map
-    disparity_map_filtered = cv2.bilateralFilter(disparity_map, 9, 75, 75)
+    # disparity_map = cv2.bilateralFilter(disparity_map, 9, 75, 75)
     
-    return disparity_map_filtered
+    return disparity_map
 
 
 def compute_depth_map(disparity_map, baseline, f_pixel):
