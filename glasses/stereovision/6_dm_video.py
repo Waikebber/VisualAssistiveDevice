@@ -7,10 +7,12 @@ from picamera import PiCamera
 import time, os, json
 import cv2
 import numpy as np
-from stereovision.calibration import StereoCalibrator
 from stereovision.calibration import StereoCalibration
 from datetime import datetime
 from math import tan, pi
+
+# Import the helper functions from stereo_helpers.py
+from stereo_helpers import calculate_distance, stereo_depth_map, load_map_settings
 
 # Load configuration from config.json
 config_path = "./cam_config.json"
@@ -42,7 +44,6 @@ UR = 10         # Uniqueness ratio to filter ambiguous matches
 SR = 14         # Speckle range to suppress noise in disparity map
 SPWS = 100      # Speckle window size for disparity filtering
 
-
 # Camera resolution height must be divisible by 16, and width by 32
 cam_width = int((cam_width + 31) / 32) * 32
 cam_height = int((cam_height + 15) / 16) * 16
@@ -55,8 +56,7 @@ capture = np.zeros((img_height, img_width, 4), dtype=np.uint8)
 print("Scaled image resolution: " + str(img_width) + " x " + str(img_height))
 
 # Focal length in pixels
-# focal_length_px = (FOCAL / SENSOR_WIDTH) * img_width  # Focal length in px without FOV
-focal_length_px = (img_width * 0.5) / tan(H_FOV * 0.5 * pi / 180) # Focal length in px with FOV
+focal_length_px = (img_width * 0.5) / tan(H_FOV * 0.5 * pi / 180)
 print("Focal length: " + str(focal_length_px) + " px")
 
 # Initialize the camera
@@ -77,80 +77,11 @@ cv2.moveWindow("left", 450, 100)
 cv2.namedWindow("right")
 cv2.moveWindow("right", 850, 100)
 
-# Initialize the StereoBM (Block Matching) object with updated parameters
+# Initialize the StereoBM (Block Matching) object
 sbm = cv2.StereoBM_create(numDisparities=NOD, blockSize=SWS)
 
-# Function to calculate the depth (distance) of the center pixel
-def calculate_distance(disparity, baseline, focal_length):
-    # Get the center pixel coordinates
-    center_x = disparity.shape[1] // 2
-    center_y = disparity.shape[0] // 2
-    center_disparity = disparity[center_y, center_x]
-    
-    if center_disparity > 0:  # Ensure disparity is positive
-        # Calculate the distance Z
-        distance = (focal_length * baseline) / center_disparity
-        return distance
-    else:
-        return float('inf')  # Infinite distance if disparity is zero or negative
-
-def stereo_depth_map(rectified_pair, baseline, focal_length):
-    dmLeft = rectified_pair[0]
-    dmRight = rectified_pair[1]
-    disparity = sbm.compute(dmLeft, dmRight)
-    local_max = disparity.max()
-    local_min = disparity.min()
-
-    # Improved normalization and visualization of the depth map
-    disparity_grayscale = (disparity - local_min) * (65535.0 / (local_max - local_min))
-    disparity_fixtype = cv2.convertScaleAbs(disparity_grayscale, alpha=(255.0 / 65535.0))
-    disparity_color = cv2.applyColorMap(disparity_fixtype, cv2.COLORMAP_JET)
-    
-    # Show the depth map
-    cv2.imshow("Image", disparity_color)
-    
-    # Calculate and print the distance of the center pixel
-    center_distance = calculate_distance(disparity, baseline, focal_length)
-    center_distance = round(center_distance, 4)
-    thresh_ft = round(THRESHOLD * 3.281, 3)
-    dist_ft = round(center_distance * 3.281, 3)
-    if center_distance < THRESHOLD:
-        print(f"Threshhold({THRESHOLD}m={thresh_ft}ft) breached, center: {center_distance}m = {dist_ft}ft")
-    
-    key = cv2.waitKey(1) & 0xFF
-    if key == ord("q"):
-        quit()
-    return disparity_color
-
-def load_map_settings(fName):
-    global SWS, PFS, PFC, MDS, NOD, TTH, UR, SR, SPWS
-    print('Loading parameters from file...')
-    with open(fName, 'r') as f:
-        data = json.load(f)
-        SWS = data['SADWindowSize']
-        PFS = data['preFilterSize']
-        PFC = data['preFilterCap']
-        MDS = data['minDisparity']
-        NOD = data['numberOfDisparities']
-        TTH = data['textureThreshold']
-        UR = data['uniquenessRatio']
-        SR = data['speckleRange']
-        SPWS = data['speckleWindowSize']
-
-        # Apply loaded parameters to StereoBM object
-        sbm.setPreFilterType(1)
-        sbm.setPreFilterSize(PFS)
-        sbm.setPreFilterCap(PFC)
-        sbm.setMinDisparity(MDS)
-        sbm.setNumDisparities(NOD)
-        sbm.setTextureThreshold(TTH)
-        sbm.setUniquenessRatio(UR)
-        sbm.setSpeckleRange(SR)
-        sbm.setSpeckleWindowSize(SPWS)
-    
-    print('Parameters loaded from file ' + fName)
-
-load_map_settings("./configCamera/3dmap_set.txt")
+# Load stereo matching parameters from config file
+load_map_settings("./configCamera/3dmap_set.txt", sbm)
 
 # Capture frames from the camera continuously
 for frame in camera.capture_continuous(capture, format="bgra", use_video_port=True, resize=(img_width, img_height)):
@@ -165,11 +96,21 @@ for frame in camera.capture_continuous(capture, format="bgra", use_video_port=Tr
     rectified_pair = calibration.rectify((imgLeft, imgRight))
     
     # Generate and display the depth map, and calculate center distance
-    disparity = stereo_depth_map(rectified_pair, BASELINE, focal_length_px)
+    disparity = stereo_depth_map(rectified_pair, BASELINE, focal_length_px, sbm, THRESHOLD)
     
     # Show the left and right images
     cv2.imshow("left", imgLeft)
     cv2.imshow("right", imgRight)
 
     t2 = datetime.now()
-    # print("DM build time: " + str(t2 - t1))
+    
+    # Show the depth map
+    cv2.imshow("Image", disparity)
+    
+    # Press 'q' to quit
+    if cv2.waitKey(1) & 0xFF == ord("q"):
+        break
+
+# Release resources
+camera.close()
+cv2.destroyAllWindows()
