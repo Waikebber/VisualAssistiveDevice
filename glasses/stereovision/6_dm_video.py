@@ -3,6 +3,10 @@
 # Copyright (C) 2019 Eugene Pomazov
 # Modified by Kai Webber on 10/29/2024
 # Main script: stereo_capture.py
+# This file is a modified version of Eugene Pomazov's code from the StereoPi tutorial scripts.
+# The original code can be found at: https://github.com/realizator/stereopi-tutorial
+# Modified by Kai Webber on 10/29/2024
+
 from picamera import PiCamera
 import time, os, json
 import cv2
@@ -12,7 +16,7 @@ from datetime import datetime
 from math import tan, pi
 
 # Import the helper functions
-from stereo_helpers import load_map_settings, stereo_disparity_map, stereo_depth_map
+from stereo_helpers import load_map_settings, stereo_disparity_map, calculate_distance
 
 # Load configuration from config.json
 config_path = "./cam_config.json"
@@ -28,9 +32,6 @@ H_FOV = int(config['field_of_view']['horizontal'])   # Horizontal field of view 
 scale_ratio = float(config['scale_ratio'])           # Image scaling ratio (0.5)
 cam_width = int(config['image_width'])
 cam_height = int(config['image_height'])
-
-# Distance threshold for distance limit
-THRESHOLD = 1  # Threshold in meters (1m)
 
 # Stereo block matching parameters
 SWS = 15       # Block size (SADWindowSize) for stereo matching
@@ -97,14 +98,19 @@ for frame in camera.capture_continuous(capture, format="bgra", use_video_port=Tr
     # Generate the disparity map
     disparity = stereo_disparity_map(rectified_pair, sbm)
     
-    # Calculate depth map and apply threshold mask
-    depth_map, thresholded_mask = stereo_depth_map(disparity, BASELINE, focal_length_px, THRESHOLD)
+    # Calculate the depth map from disparity
+    depth_map, threshold_map = calculate_distance(disparity, BASELINE, focal_length_px)
     
-    # Apply mask to the depth map for visualization of values below threshold
-    thresholded_depth_map = np.where(thresholded_mask, depth_map, 0)
+    # Get the center pixel's coordinates
+    center_x = depth_map.shape[1] // 2
+    center_y = depth_map.shape[0] // 2
+    center_distance = depth_map[center_y, center_x]
     
-    # Display the depth map with thresholded values
-    depth_map_visual = cv2.applyColorMap(cv2.convertScaleAbs(thresholded_depth_map, alpha=255.0 / np.max(thresholded_depth_map)), cv2.COLORMAP_JET)
+    # Print the distance of the center pixel
+    print(f"Center pixel distance: {center_distance:.4f} meters")
+    
+    # Display the depth map as a color map for visualization
+    depth_map_visual = cv2.applyColorMap(cv2.convertScaleAbs(depth_map, alpha=255.0 / np.max(depth_map)), cv2.COLORMAP_JET)
     cv2.imshow("Depth Map", depth_map_visual)
 
     # Display the left and right images
