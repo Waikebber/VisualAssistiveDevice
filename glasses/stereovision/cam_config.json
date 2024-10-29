@@ -13,8 +13,8 @@
     "distortion": "< 1%",
     "baseline_length_mm": 60,
 
-    "image_width": 1280,
-    "image_height": 480,
+    "image_width": 2560,
+    "image_height": 960,
     "scale_ratio": 0.5,
 
     "chess_rows": 9,
