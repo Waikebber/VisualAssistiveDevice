@@ -107,7 +107,8 @@ for frame in camera.capture_continuous(capture, format="bgra", use_video_port=Tr
     center_distance = depth_map[center_y, center_x]
     
     # Print the distance of the center pixel
-    print(f"Center pixel distance: {center_distance:.4f} meters")
+    center_distance_ft = center_distance * 3.281
+    print(f"Center pixel: {center_distance:.4f}m ({center_distance_ft:.4f}ft)")
     
     # Display the depth map as a color map for visualization
     depth_map_visual = cv2.applyColorMap(cv2.convertScaleAbs(depth_map, alpha=255.0 / np.max(depth_map)), cv2.COLORMAP_JET)
