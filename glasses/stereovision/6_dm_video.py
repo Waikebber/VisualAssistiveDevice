@@ -2,7 +2,7 @@
 # The original code can be found at: https://github.com/realizator/stereopi-tutorial
 # Copyright (C) 2019 Eugene Pomazov
 # Modified by Kai Webber on 10/29/2024
-
+# Main script: stereo_capture.py
 from picamera import PiCamera
 import time, os, json
 import cv2
@@ -11,8 +11,8 @@ from stereovision.calibration import StereoCalibration
 from datetime import datetime
 from math import tan, pi
 
-# Import the helper functions from stereo_helpers.py
-from stereo_helpers import calculate_distance, stereo_depth_map, load_map_settings
+# Import the helper functions
+from stereo_helpers import load_map_settings, stereo_disparity_map, stereo_depth_map
 
 # Load configuration from config.json
 config_path = "./cam_config.json"
@@ -22,29 +22,28 @@ with open(config_path, 'r') as config_file:
     config = json.load(config_file)
     
 # Camera calibration parameters
-BASELINE = int(config['baseline_length_mm']) / 1000  # Baseline in m (60mm)
-FOCAL = int(config['focal_length_mm']) / 1000        # Focal length in m (2.6mm)
-SENSOR_WIDTH = float(config['cmos_size_m'])          # Sensor width in m (1/4in)
-H_FOV = int(config['field_of_view']['horizontal'])   # Horizontal field of view (73deg)
+BASELINE = int(config['baseline_length_mm']) / 1000  # Baseline in meters (60mm)
+FOCAL = int(config['focal_length_mm']) / 1000        # Focal length in meters (2.6mm)
+H_FOV = int(config['field_of_view']['horizontal'])   # Horizontal field of view (73 degrees)
 scale_ratio = float(config['scale_ratio'])           # Image scaling ratio (0.5)
 cam_width = int(config['image_width'])
 cam_height = int(config['image_height'])
 
 # Distance threshold for distance limit
-THRESHOLD = 1    # Threshold in meters (1m)
+THRESHOLD = 1  # Threshold in meters (1m)
 
 # Stereo block matching parameters
-SWS = 15        # Block size (SADWindowSize) for stereo matching
-PFS = 9         # Pre-filter size to smooth image noise
-PFC = 29        # Pre-filter cap (intensity normalization)
-MDS = -30       # Minimum disparity for close-range depth calculation
-NOD = 16 * 9    # Number of disparities (multiple of 16)
-TTH = 100       # Texture threshold for disparity computation
-UR = 10         # Uniqueness ratio to filter ambiguous matches
-SR = 14         # Speckle range to suppress noise in disparity map
-SPWS = 100      # Speckle window size for disparity filtering
+SWS = 15       # Block size (SADWindowSize) for stereo matching
+PFS = 9        # Pre-filter size to smooth image noise
+PFC = 29       # Pre-filter cap (intensity normalization)
+MDS = -30      # Minimum disparity for close-range depth calculation
+NOD = 16 * 9   # Number of disparities (multiple of 16)
+TTH = 100      # Texture threshold for disparity computation
+UR = 10        # Uniqueness ratio to filter ambiguous matches
+SR = 14        # Speckle range to suppress noise in disparity map
+SPWS = 100     # Speckle window size for disparity filtering
 
-# Camera resolution height must be divisible by 16, and width by 32
+# Adjust camera resolution to be divisible by 16 and 32
 cam_width = int((cam_width + 31) / 32) * 32
 cam_height = int((cam_height + 15) / 16) * 16
 print("Used camera resolution: " + str(cam_width) + " x " + str(cam_height))
@@ -55,7 +54,7 @@ img_height = int(cam_height * scale_ratio)
 capture = np.zeros((img_height, img_width, 4), dtype=np.uint8)
 print("Scaled image resolution: " + str(img_width) + " x " + str(img_height))
 
-# Focal length in pixels
+# Focal length in pixels, based on field of view
 focal_length_px = (img_width * 0.5) / tan(H_FOV * 0.5 * pi / 180)
 print("Focal length: " + str(focal_length_px) + " px")
 
@@ -65,13 +64,13 @@ camera.resolution = (cam_width, cam_height)
 camera.framerate = 20
 camera.hflip = True
 
-# Implementing calibration data
-print('Read calibration data and rectifying stereo pair...')
+# Load calibration data for rectification
+print('Reading calibration data and rectifying stereo pair...')
 calibration = StereoCalibration(input_folder='calib_result')
 
-# Initialize interface windows
-cv2.namedWindow("Image")
-cv2.moveWindow("Image", 50, 100)
+# Initialize display windows
+cv2.namedWindow("Depth Map")
+cv2.moveWindow("Depth Map", 50, 100)
 cv2.namedWindow("left")
 cv2.moveWindow("left", 450, 100)
 cv2.namedWindow("right")
@@ -80,7 +79,7 @@ cv2.moveWindow("right", 850, 100)
 # Initialize the StereoBM (Block Matching) object
 sbm = cv2.StereoBM_create(numDisparities=NOD, blockSize=SWS)
 
-# Load stereo matching parameters from config file
+# Load stereo matching parameters from configuration file
 load_map_settings("./configCamera/3dmap_set.txt", sbm)
 
 # Capture frames from the camera continuously
@@ -95,17 +94,24 @@ for frame in camera.capture_continuous(capture, format="bgra", use_video_port=Tr
     # Rectify the stereo pair using calibration data
     rectified_pair = calibration.rectify((imgLeft, imgRight))
     
-    # Generate and display the depth map, and calculate center distance
-    disparity = stereo_depth_map(rectified_pair, BASELINE, focal_length_px, sbm, THRESHOLD)
+    # Generate the disparity map
+    disparity = stereo_disparity_map(rectified_pair, sbm)
     
-    # Show the left and right images
+    # Calculate depth map and apply threshold mask
+    depth_map, thresholded_mask = stereo_depth_map(disparity, BASELINE, focal_length_px, THRESHOLD)
+    
+    # Apply mask to the depth map for visualization of values below threshold
+    thresholded_depth_map = np.where(thresholded_mask, depth_map, 0)
+    
+    # Display the depth map with thresholded values
+    depth_map_visual = cv2.applyColorMap(cv2.convertScaleAbs(thresholded_depth_map, alpha=255.0 / np.max(thresholded_depth_map)), cv2.COLORMAP_JET)
+    cv2.imshow("Depth Map", depth_map_visual)
+
+    # Display the left and right images
     cv2.imshow("left", imgLeft)
     cv2.imshow("right", imgRight)
 
     t2 = datetime.now()
-    
-    # Show the depth map
-    cv2.imshow("Image", disparity)
     
     # Press 'q' to quit
     if cv2.waitKey(1) & 0xFF == ord("q"):
