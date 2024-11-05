@@ -37,8 +37,9 @@ from datetime import datetime
 
 
 # File for captured image
-filename = './scenes/photo.png'
-config_path = "../cam_config.json"
+scene_path = "/data/stereo/scenes"
+filename = os.path.join(scene_path, 'photo.png')
+config_path = "/data/stereo/cam_config.json"
 
 if not os.path.isfile(config_path):
     raise FileNotFoundError(f"Configuration file {config_path} not found.")
@@ -85,8 +86,8 @@ for frame in camera.capture_continuous(capture, format="bgra", use_video_port=Tr
         avgtime = avgtime/counter
         print ("Average time between frames: " + str(avgtime))
         print ("Average FPS: " + str(1/avgtime))
-        if (os.path.isdir("./scenes")==False):
-            os.makedirs("./scenes")
+        if (os.path.isdir(scene_path)==False):
+            os.makedirs(scene_path)
         cv2.imwrite(filename, frame)
         break
    

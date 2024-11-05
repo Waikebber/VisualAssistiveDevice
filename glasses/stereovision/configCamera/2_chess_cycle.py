@@ -34,7 +34,8 @@ import cv2
 import numpy as np
 
 # Load Camera settings
-config_path = "../cam_config.json"
+config_path = "/data/stereo/cam_config.json"
+scene_path = "/data/stereo/scenes"
 if not os.path.isfile(config_path):
     raise FileNotFoundError(f"Configuration file {config_path} not found.")
 with open(config_path, 'r') as config_file:
@@ -79,7 +80,7 @@ for frame in camera.capture_continuous(capture, format="bgra", \
     # If countdown is zero - record the next image
     if cntdwn_timer == -1:
         counter += 1
-        filename = './scenes/scene_' + str(img_width) + 'x' + str(img_height) + '_' + \
+        filename = scene_path+ '/scene_' + str(img_width) + 'x' + str(img_height) + '_' + \
                    str(counter) + '.png'
         cv2.imwrite(filename, frame)
         print(' [' + str(counter) + ' of ' + str(total_photos) + '] ' + filename)

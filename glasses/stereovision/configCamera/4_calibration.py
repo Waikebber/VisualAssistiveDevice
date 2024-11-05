@@ -34,7 +34,9 @@ from stereovision.calibration import StereoCalibration
 from stereovision.exceptions import ChessboardNotFoundError
 
 # Load configuration from config.json
-config_path = "../cam_config.json"
+config_path = "/data/stereo/cam_config.json"
+pairs_path = "/data/stereo/pairs"
+calib_result = "/data/stereo/calib_result"
 if not os.path.isfile(config_path):
     raise FileNotFoundError(f"Configuration file {config_path} not found.")
 with open(config_path, 'r') as config_file:
@@ -64,8 +66,8 @@ while photo_counter != total_photos:
     photo_counter += 1
     print('Import pair No ' + str(photo_counter))
     
-    leftName = './pairs/left_' + str(photo_counter).zfill(2) + '.png'
-    rightName = './pairs/right_' + str(photo_counter).zfill(2) + '.png'
+    leftName = pairs_path + '/left_' + str(photo_counter).zfill(2) + '.png'
+    rightName = pairs_path + '/right_' + str(photo_counter).zfill(2) + '.png'
     
     # Check if both left and right images exist
     if os.path.isfile(leftName) and os.path.isfile(rightName):
@@ -89,11 +91,11 @@ print('Starting calibration... It can take several minutes!')
 # Calibrate the stereo camera system
 calibration = calibrator.calibrate_cameras()
 # Export the calibration results to the 'calib_result' folder
-calibration.export('./calib_result')
+calibration.export(calib_result)
 print('Calibration complete!')
 
 # Rectify and show the last pair after calibration
-calibration = StereoCalibration(input_folder='./calib_result')
+calibration = StereoCalibration(input_folder=calib_result)
 rectified_pair = calibration.rectify((imgLeft, imgRight))
 
 # Display the rectified images

@@ -2,14 +2,15 @@ import cv2
 from picamera2 import Picamera2
 from ultralytics import YOLO
 import time
+from ImgRec import ImgRec
 
 # Reduce OpenCV's thread usage to avoid overload
 cv2.setNumThreads(1)
 
-# Load YOLO model
-print("Loading YOLO model...")
-model = YOLO('yolov8n.pt')  # YOLO nano version for lower resource usage
-print("YOLO model loaded successfully.")
+# Initialize ImgRec object
+print("Initializing ImgRec for YOLO model...")
+img_rec = ImgRec()
+print("ImgRec initialized successfully.")
 
 # Initialize stereo cameras using Picamera2
 print("Initializing cameras...")
@@ -25,20 +26,24 @@ left_cam.start()
 right_cam.start()
 print("Cameras started successfully.")
 
-# Function to save detection results on the frame
-def process_frame_and_save(frame, filename):
+# Function to process and save detection results for a frame using ImgRec
+def process_frame_and_save(frame, filename, confidence_threshold=0.5):
     print(f"Processing frame and saving to {filename}...")
-    # Convert the frame from RGB to BGR for OpenCV/YOLO compatibility
+    # Run the ImgRec detection model on the frame and interpret results
+    detections = img_rec.predict_frame(frame, confidence_threshold=confidence_threshold)
+    
+    # Convert the frame from RGB to BGR for OpenCV compatibility (if needed)
     frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
     
-    # Run the YOLO detection model on the frame
-    results = model(frame_bgr)
-    
-    # Plot the results (bounding boxes, etc.)
-    result_img = results[0].plot()
-    
-    # Save the result to a file
-    cv2.imwrite(filename, result_img)
+    # Annotate the frame with detections
+    for obj_name, bounding_box, confidence in detections:
+        x_min, y_min, x_max, y_max = map(int, bounding_box)
+        cv2.rectangle(frame_bgr, (x_min, y_min), (x_max, y_max), (0, 255, 0), 2)
+        label = f"{obj_name} ({confidence:.2f})"
+        cv2.putText(frame_bgr, label, (x_min, y_min - 10 if y_min > 20 else y_min + 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
+    # Save the annotated frame to a file
+    cv2.imwrite(filename, frame_bgr)
     print(f"Classified image saved as {filename}")
 
 while True:

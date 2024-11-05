@@ -30,7 +30,9 @@ import cv2
 import os, json
 
 # Load configuration from config.json
-config_path = "../cam_config.json"
+config_path = "/data/stereo/cam_config.json"
+scene_path = "/data/stereo/scenes"
+pairs_path = "/data/stereo/pairs"
 if not os.path.isfile(config_path):
     raise FileNotFoundError(f"Configuration file {config_path} not found.")
 with open(config_path, 'r') as config_file:
@@ -46,12 +48,12 @@ img_width = photo_width // 2
 photo_counter = 0
 
 # Main pair cut cycle
-if (os.path.isdir("./pairs") == False):
-    os.makedirs("./pairs")
+if (os.path.isdir(pairs_path) == False):
+    os.makedirs(pairs_path)
 
 while photo_counter != total_photos:
     photo_counter += 1
-    filename = './scenes/scene_' + str(photo_width) + 'x' + str(photo_height) + \
+    filename = scene_path+'/scene_' + str(photo_width) + 'x' + str(photo_height) + \
                '_' + str(photo_counter) + '.png'
     
     if os.path.isfile(filename) == False:
@@ -70,8 +72,8 @@ while photo_counter != total_photos:
     imgRight = pair_img[0:img_height, img_width:photo_width]  # Right image
     
     # Save the split left and right images
-    leftName = './pairs/left_' + str(photo_counter).zfill(2) + '.png'
-    rightName = './pairs/right_' + str(photo_counter).zfill(2) + '.png'
+    leftName = pairs_path + '/left_' + str(photo_counter).zfill(2) + '.png'
+    rightName = pairs_path + '/right_' + str(photo_counter).zfill(2) + '.png'
     
     cv2.imwrite(leftName, imgLeft)
     cv2.imwrite(rightName, imgRight)

@@ -15,7 +15,7 @@ from math import tan, pi
 from stereo_helpers import load_map_settings, stereo_disparity_map, stereo_depth_map
 
 # Load configuration from config.json
-config_path = "./cam_config.json"
+config_path = "/data/stereo/cam_config.json"
 if not os.path.isfile(config_path):
     raise FileNotFoundError(f"Configuration file {config_path} not found.")
 with open(config_path, 'r') as config_file:
@@ -80,7 +80,7 @@ cv2.moveWindow("right", 850, 100)
 sbm = cv2.StereoBM_create(numDisparities=NOD, blockSize=SWS)
 
 # Load stereo matching parameters from configuration file
-load_map_settings("./configCamera/3dmap_set.txt", sbm)
+load_map_settings("/data/stereo/3dmap_set.txt", sbm)
 
 # Capture frames from the camera continuously
 for frame in camera.capture_continuous(capture, format="bgra", use_video_port=True, resize=(img_width, img_height)):

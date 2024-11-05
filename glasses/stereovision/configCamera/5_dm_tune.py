@@ -43,14 +43,15 @@ loading_settings = 0 # 0 is not currently loading settings.
 
 # Load camera configs
 # Load configuration from config.json
-config_path = "../cam_config.json"
+config_path = "/data/stereo/cam_config.json"
 if not os.path.isfile(config_path):
     raise FileNotFoundError(f"Configuration file {config_path} not found.")
 with open(config_path, 'r') as config_file:
     config = json.load(config_file)
 
 # Global variables preset
-imageToDisp = './scenes/photo.png'
+imageToDisp = '/data/stereo/scenes/photo.png'
+calib_result = "/data/stereo/calib_result"
 scale_ratio = float(config['scale_ratio'])
 photo_width = int(int(config['image_width']) * scale_ratio)
 photo_height = int(int(config['image_height']) * scale_ratio)
@@ -70,7 +71,7 @@ imgRight = pair_img[0:photo_height, image_width:photo_width]  # Right image
 
 # Implementing calibration data
 print('Read calibration data and rectifying stereo pair...')
-calibration = StereoCalibration(input_folder='./calib_result')
+calibration = StereoCalibration(input_folder=calib_result)
 rectified_pair = calibration.rectify((imgLeft, imgRight))
 
 # Depth map function
@@ -144,7 +145,7 @@ def save_map_settings( event ):
              'minDisparity':MDS, 'numberOfDisparities':NOD, 'textureThreshold':TTH, \
              'uniquenessRatio':UR, 'speckleRange':SR, 'speckleWindowSize':SPWS},\
              sort_keys=True, indent=4, separators=(',',':'))
-    fName = './3dmap_set.txt'
+    fName = '/data/stereo/3dmap_set.txt'
     f = open (str(fName), 'w') 
     f.write(result)
     f.close()
@@ -159,7 +160,7 @@ buttonl = Button(loadax, 'Load settings', color=axcolor, hovercolor='0.975')
 def load_map_settings( event ):
     global SWS, PFS, PFC, MDS, NOD, TTH, UR, SR, SPWS, loading_settings
     loading_settings = 1
-    fName = './3dmap_set.txt'
+    fName = '/data/stereo/3dmap_set.txt'
     print('Loading parameters from file...')
     buttonl.label.set_text ("Loading...")
     f=open(fName, 'r')
