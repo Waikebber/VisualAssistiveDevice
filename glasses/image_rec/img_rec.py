@@ -1,5 +1,4 @@
 import os, glob
-import cv2
 from ultralytics import YOLO
 from PIL import Image
 import numpy as np

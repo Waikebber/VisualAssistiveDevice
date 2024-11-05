@@ -1,6 +1,6 @@
 import os
 import sys
-from img_rec import ImgRec
+from vision.img_rec import ImgRec
 
 def run_image_recognition(input_path, confidence_threshold=0.5, save_result=False):
     """Runs image recognition on a single image or all images in a folder.
