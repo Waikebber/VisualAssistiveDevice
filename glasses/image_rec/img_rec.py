@@ -7,14 +7,13 @@ class ImgRec:
     def __init__(self):
         self.model = YOLO('yolov8n.pt')
 
-    def predict_one_image(self, img_path, save_result=False, save_folder='./predictions', confidence_threshold=0.5):
+    def predict_one_image(self, img_path, save_result=False, confidence_threshold=0.5):
         """Creates an image recognition prediction for a single image.
-           If a save folder is provided, the result will be saved with '_prediction' appended.
+           If save_result is True, the result will be saved with '_prediction' appended in a 'predictions' folder at the image's path.
 
         Args:
             img_path (str): Path to the image.
             save_result (bool, optional): Saves the resulting classification to a file. Defaults to False.
-            save_folder (str, optional): Folder path to save the result. Defaults to './predictions'.
             confidence_threshold (float, optional): Confidence threshold for detected objects. Defaults to 0.5.
 
         Returns:
@@ -28,6 +27,8 @@ class ImgRec:
 
         # Ensure save folder exists if saving results
         if save_result:
+            img_directory = os.path.dirname(img_path)
+            save_folder = os.path.join(img_directory, 'predictions')
             if not os.path.exists(save_folder):
                 os.makedirs(save_folder)
             save_path = os.path.join(save_folder, os.path.basename(img_path).replace('.png', '_prediction.png'))
@@ -48,26 +49,23 @@ class ImgRec:
         results = self.model(frame_array)
         return self._interpret_results(results, confidence_threshold)
         
-    def predict_folder(self, folder_path, confidence_threshold=0.5, save_result=False, save_folder='./predictions'):
+    def predict_folder(self, folder_path, confidence_threshold=0.5, save_result=False):
         """Creates image recognition predictions for all images in a folder.
-           If a save folder is provided, the results will be saved with '_prediction' appended.
+           If save_result is True, the results will be saved in a 'predictions' folder within each image's directory.
 
         Args:
             folder_path (str): Path to the folder containing images.
             confidence_threshold (float, optional): Confidence threshold for detected objects. Defaults to 0.5.
             save_result (bool, optional): Saves the resulting classifications to files. Defaults to False.
-            save_folder (str, optional): Folder path to save the results. Defaults to './predictions'.
         
         Returns:
             dict: Dictionary of image paths and their corresponding lists of detected objects.
         """
         img_paths = glob.glob(os.path.join(folder_path, '*.png'))
-        if save_result and not os.path.exists(save_folder):
-            os.makedirs(save_folder)
         
         results = {}
         for img_path in img_paths:
-            prediction = self.predict_one_image(img_path, save_result=save_result, save_folder=save_folder, confidence_threshold=confidence_threshold)
+            prediction = self.predict_one_image(img_path, save_result=save_result, confidence_threshold=confidence_threshold)
             results[img_path] = prediction
         
         return results
@@ -90,4 +88,3 @@ class ImgRec:
                 bounding_box = box.xyxy  # Get the bounding box coordinates
                 detected_objects.append((object_name, bounding_box, confidence))
         return detected_objects
-    
