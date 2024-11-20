@@ -15,7 +15,7 @@ A Raspberry Pi-based visual assistance system that combines stereo vision for de
 ## Hardware Requirements
 
 - Raspberry Pi
-  - [CM4)](https://www.raspberrypi.com/products/compute-module-4/?variant=raspberry-pi-cm4001000)
+  - [CM4](https://www.raspberrypi.com/products/compute-module-4/?variant=raspberry-pi-cm4001000)
 - Stereo camera module
   - [Dual IMX219](https://www.waveshare.com/imx219-83-stereo-camera.htm)
 - Push button for interaction
