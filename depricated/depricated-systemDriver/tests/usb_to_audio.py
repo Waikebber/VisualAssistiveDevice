@@ -1,5 +1,5 @@
 from pygame import mixer 
-
+ 
 # Starting the mixer 
 mixer.init(channels=2) 
 

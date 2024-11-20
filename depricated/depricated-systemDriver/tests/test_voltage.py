@@ -1,4 +1,4 @@
-import RPi.GPIO as GPIO
+import RPi.GPIO as GPIO 
 import time
 
 # Set up GPIO using BCM numbering

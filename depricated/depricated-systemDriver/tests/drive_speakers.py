@@ -1,5 +1,5 @@
 import RPi.GPIO as GPIO
-import time
+import time 
 
 # Set up GPIO
 pwm_pin = 12 # GPIO 26 corresponds to physical pin 32
