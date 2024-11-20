@@ -1,0 +1,26 @@
+{
+    "cmos_size_in": "0.25",
+    "cmos_size_m": "0.00635",
+    "aperture": 2.4,
+    "resolution_width": "3280",
+    "resolution_height": "2464",
+    "focal_length_mm": 2.6,
+    "field_of_view": {
+        "diagonal": 83,
+        "horizontal": 73,
+        "vertical": 50
+    },
+    "distortion": "< 1%",
+    "baseline_length_mm": 60,
+
+    "image_width": 1280,
+    "image_height": 480,
+    "scale_ratio": 0.5,
+
+    "chess_rows": 9,
+    "chess_columns": 6,
+    "chess_square_cm": 2.54,
+
+    "total_photos": 30,
+    "countdown": 3
+}
