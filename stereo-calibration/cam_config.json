@@ -13,7 +13,7 @@
     "distortion": "< 1%",
     "baseline_length_mm": 60,
 
-    "image_width": 1280,
+    "image_width": 640,
     "image_height": 480,
     "scale_ratio": 0.5,
 
