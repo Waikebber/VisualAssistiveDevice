@@ -90,7 +90,7 @@ try:
         if cntdwn_timer == -1:
             counter += 1
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f'./scenes/stereo_{img_width}x{img_height}_{counter}_{timestamp}.png'
+            filename = f'./scenes/scene_{img_width}x{img_height}_{counter}.png'
             cv2.imwrite(filename, frame)
             print(f' [{counter} of {total_photos}] {filename}')
             t2 = datetime.now()
