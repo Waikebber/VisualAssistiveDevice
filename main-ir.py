@@ -12,16 +12,11 @@ import RPi.GPIO as GPIO
 from image_rec.img_rec import ImgRec
 from distance_calculator.DistanceCalculator import DistanceCalculator
 
-# Constants and Configuration
 CONFIDENCE = 0.6
 THRESHOLD = 2.5   # Threshold in meters (2.5m)
 CONFIG_FILE = "stereo_calibration/cam_config.json"
 SETTINGS_FILE = "stereo_calibration/3dmap_set.txt"
 CALIB_RESULTS = 'stereo_calibration/calib_result'
-
-SAVE_OUTPUT = True
-OUTPUT_DIR = 'output'
-OUTPUT_FILE = 'output.png'
 
 # Load configuration from config.json
 config_path = CONFIG_FILE
@@ -29,7 +24,6 @@ if not os.path.isfile(config_path):
     raise FileNotFoundError(f"Configuration file {config_path} not found.")
 with open(config_path, 'r') as config_file:
     config = json.load(config_file)
-    
 BASELINE = int(config['baseline_length_mm']) / 1000  # Baseline in m (60mm)
 FOCAL = int(config['focal_length_mm']) / 1000        # Focal length in m (2.6mm)
 SENSOR_WIDTH = float(config['cmos_size_m'])          # Sensor width in m (1/4in)
@@ -49,7 +43,7 @@ print("Image resolution: " + str(img_width) + " x " + str(img_height))
 focal_length_px = (img_width * 0.5) / tan(H_FOV * 0.5 * pi / 180) # Focal length in px with FOV
 print("Focal length: " + str(focal_length_px) + " px")
 
-# Initialize components
+# Initialize the image recognition model and distance calculator
 img_recognizer = ImgRec()
 distance = DistanceCalculator(BASELINE, focal_length_px)
 
@@ -58,43 +52,32 @@ GPIO.setmode(GPIO.BCM)
 BUTTON_PIN = 21
 GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
-# Global variables for frame storage
-current_frame_left = None
-current_frame_right = None
-current_disparity = None
-rectified_pair = None
-
 def button_press_action():
-    global current_frame_left, current_frame_right, current_disparity, calibration, rectified_pair
-    if current_frame_left is None or current_frame_right is None or rectified_pair is None:
+    global current_disparity, rectified_pair
+    disparity_on_button_press = current_disparity
+    
+    if rectified_pair is None or disparity_on_button_press is None:
         print("No frames available yet")
         return
-
+        
     print("Button pressed - performing object detection and distance measurement")
     
-    # Use the already rectified left image for detection
-    rectified_left = cv2.cvtColor(rectified_pair[0], cv2.COLOR_GRAY2BGR)
+    # Convert rectified grayscale to BGR for object detection
+    rectified_color = cv2.cvtColor(rectified_pair[0], cv2.COLOR_GRAY2BGR)
     
-    # Perform object detection on the rectified left image
-    detected_objects = img_recognizer.predict_frame(rectified_left)
+    # Use the rectified frame for object detection
+    detected_objects = img_recognizer.predict_frame(rectified_color)
+    print('OBJECTS')
+    print(detected_objects)
     
-    # Process detected objects
-    bounding_boxes = [
-        (x, y, w, h, label, distance.calculate_distance(x + w//2, y + h//2, current_disparity))
-        for label, (x, y, w, h), confidence in detected_objects
-        if confidence >= CONFIDENCE
-    ]
+    # Calculate distances for detected objects using current disparity
+    object_distances = distance.calculate_object_distances(disparity_on_button_press, detected_objects)
     
-    if SAVE_OUTPUT:
-        output = distance.create_detection_image(current_disparity, bounding_boxes)
-        os.makedirs(OUTPUT_DIR, exist_ok=True)
-        cv2.imwrite(os.path.join(OUTPUT_DIR, OUTPUT_FILE), output)
-    
-    # Process and announce detected objects
-    for x, y, w, h, label, obj_distance in bounding_boxes:
-        if obj_distance < THRESHOLD:
-            distance_ft = round(obj_distance * 3.281, 2)
-            message = f"Warning: {label} detected at {obj_distance:.2f} meters ({distance_ft} feet)"
+    # Process and announce detected objects within threshold
+    for obj_name, distance_val, confidence, coords in object_distances:
+        if distance_val < THRESHOLD and CONFIDENCE <= confidence:
+            distance_ft = round(distance_val * 3.281, 2)
+            message = f"Warning: {obj_name} detected at {distance_val:.2f} meters ({distance_ft} feet)"
             print(message)
             speak_async(message)
 
@@ -102,18 +85,20 @@ def on_button_press(channel):
     p = multiprocessing.Process(target=button_press_action)
     p.start()
 
-# Stereo block matching parameters
-SWS = 15        # Block size (SADWindowSize)
-PFS = 9         # Pre-filter size
-PFC = 29        # Pre-filter cap
-MDS = -30       # Minimum disparity
-NOD = 16 * 9    # Number of disparities
-TTH = 100       # Texture threshold
-UR = 10         # Uniqueness ratio
-SR = 14         # Speckle range
-SPWS = 100      # Speckle window size
+GPIO.add_event_detect(BUTTON_PIN, GPIO.RISING, callback=on_button_press, bouncetime=200)
 
-# Initialize cameras
+# Stereo block matching parameters
+SWS = 15        # Block size (SADWindowSize) for stereo matching
+PFS = 9         # Pre-filter size to smooth image noise
+PFC = 29        # Pre-filter cap (intensity normalization)
+MDS = -30       # Minimum disparity for close-range depth calculation
+NOD = 16 * 9    # Number of disparities (multiple of 16)
+TTH = 100       # Texture threshold for disparity computation
+UR = 10         # Uniqueness ratio to filter ambiguous matches
+SR = 14         # Speckle range to suppress noise in disparity map
+SPWS = 100      # Speckle window size for disparity filtering
+
+# Initialize the cameras
 camera_left = initialize_camera(0, img_width, img_height)
 camera_right = initialize_camera(1, img_width, img_height)
 
@@ -121,22 +106,21 @@ camera_right = initialize_camera(1, img_width, img_height)
 camera_left.start()
 camera_right.start()
 
-# Load calibration
+# Implementing calibration data
 print('Read calibration data and rectifying stereo pair...')
 calibration = StereoCalibration(input_folder=CALIB_RESULTS)
 
 # Initialize interface windows
-cv2.namedWindow("Disparity", cv2.WINDOW_NORMAL)
-cv2.moveWindow("Disparity", 50, 100)
-cv2.namedWindow("Left", cv2.WINDOW_NORMAL)
-cv2.moveWindow("Left", 450, 100)
-cv2.namedWindow("Right", cv2.WINDOW_NORMAL)
-cv2.moveWindow("Right", 850, 100)
+cv2.namedWindow("Image")
+cv2.moveWindow("Image", 50, 100)
+cv2.namedWindow("left")
+cv2.moveWindow("left", 450, 100)
+cv2.namedWindow("right")
+cv2.moveWindow("right", 850, 100)
 
-# Initialize StereoBM
+# Initialize the StereoBM (Block Matching) object with updated parameters
 sbm = cv2.StereoBM_create(numDisparities=NOD, blockSize=SWS)
 
-# Audio process handling
 audio_process = None
 def speak_async(text):
     global audio_process
@@ -144,25 +128,30 @@ def speak_async(text):
         audio_process = multiprocessing.Process(target=speak, args=(text, 3, 90))
         audio_process.start()
 
-def stereo_depth_map(rectified_pair, baseline, focal_length, bounding_boxes=None):
-    dmLeft, dmRight = rectified_pair
+def stereo_depth_map(rectified_pair, baseline, focal_length):
+    dmLeft = rectified_pair[0]
+    dmRight = rectified_pair[1]
     disparity = sbm.compute(dmLeft, dmRight).astype(np.float32) / 16.0
     local_max = disparity.max()
     local_min = disparity.min()
 
-    # Normalize and visualize the disparity map
+    # Improved normalization and visualization of the depth map
     disparity_grayscale = (disparity - local_min) * (65535.0 / (local_max - local_min))
     disparity_fixtype = cv2.convertScaleAbs(disparity_grayscale, alpha=(255.0 / 65535.0))
     disparity_color = cv2.applyColorMap(disparity_fixtype, cv2.COLORMAP_JET)
     
-    # Overlay bounding boxes if available
-    if bounding_boxes:
-        for x, y, w, h, label, obj_distance in bounding_boxes:
-            cv2.rectangle(disparity_color, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            text = f"{label} ({obj_distance:.2f}m)"
-            cv2.putText(disparity_color, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+    # Show the depth map
+    cv2.imshow("Image", disparity_color)
     
-    cv2.imshow("Disparity", disparity_color)
+    # Calculate and print the distance of the center pixel
+    center_distance = distance.calculate_center_distance(disparity)
+    center_distance = round(center_distance, 4)
+    thresh_ft = round(THRESHOLD * 3.281, 3)
+    dist_ft = round(center_distance * 3.281, 3)
+    if center_distance < THRESHOLD:
+        print(f"Threshold({THRESHOLD}m={thresh_ft}ft) breached, center: {center_distance}m = {dist_ft}ft")
+        speak_async(f"Threshold({THRESHOLD}m={thresh_ft}ft) breached, center: {center_distance}m = {dist_ft}ft")
+    
     return disparity_color, disparity
 
 def load_map_settings(fName):
@@ -180,7 +169,7 @@ def load_map_settings(fName):
         SR = data['speckleRange']
         SPWS = data['speckleWindowSize']
 
-        # Apply settings to StereoBM object
+        # Apply loaded parameters to StereoBM object
         sbm.setPreFilterType(1)
         sbm.setPreFilterSize(PFS)
         sbm.setPreFilterCap(PFC)
@@ -193,16 +182,13 @@ def load_map_settings(fName):
     
     print('Parameters loaded from file ' + fName)
 
-# Load stereo mapping settings
 load_map_settings(SETTINGS_FILE)
 
-# Attach button press handler
-GPIO.add_event_detect(BUTTON_PIN, GPIO.FALLING, callback=on_button_press, bouncetime=1000)
-
 try:
-    # Main loop - continuous stereo vision
+    # Capture frames from the camera continuously
     while True:
-        # Capture frames
+        global current_frame_left, current_frame_right, current_disparity, rectified_pair
+        
         current_frame_left = camera_left.capture_array()
         current_frame_right = camera_right.capture_array()
 
@@ -210,24 +196,23 @@ try:
         imgLeft = cv2.cvtColor(current_frame_left, cv2.COLOR_BGR2GRAY)
         imgRight = cv2.cvtColor(current_frame_right, cv2.COLOR_BGR2GRAY)
         
-        # Rectify the stereo pair
+        # Rectify the stereo pair using calibration data and store globally
         rectified_pair = calibration.rectify((imgLeft, imgRight))
         
-        # Generate and display the depth map
+        # Generate and display the depth map, and calculate center distance
         disparity_color, current_disparity = stereo_depth_map(rectified_pair, BASELINE, focal_length_px)
         
-        # Show the rectified images
-        cv2.imshow("Left", rectified_pair[0])
-        cv2.imshow("Right", rectified_pair[1])
+        # Show the left and right images
+        cv2.imshow("left", imgLeft)
+        cv2.imshow("right", imgRight)
         
-        # Check for quit command
+        # Check for 'q' key to quit
         key = cv2.waitKey(1) & 0xFF
         if key == ord("q"):
             break
 
 finally:
     # Cleanup
-    GPIO.cleanup()
     camera_left.stop()
     camera_right.stop()
     cv2.destroyAllWindows()
