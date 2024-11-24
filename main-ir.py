@@ -18,6 +18,10 @@ CONFIG_FILE = "stereo_calibration/cam_config.json"
 SETTINGS_FILE = "stereo_calibration/3dmap_set.txt"
 CALIB_RESULTS = 'stereo_calibration/calib_result'
 
+SAVE_OUTPUT = True
+OUTPUT_DIR = 'output'
+OUTPUT_FILE = 'output.png'
+
 # Load configuration from config.json
 config_path = CONFIG_FILE
 if not os.path.isfile(config_path):
@@ -53,31 +57,36 @@ BUTTON_PIN = 21
 GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 def button_press_action():
-    global current_disparity, rectified_pair
+    global current_disparity, rectified_pair, distance
     disparity_on_button_press = current_disparity
+    current_pair = rectified_pair
     
-    if rectified_pair is None or disparity_on_button_press is None:
+    if current_pair is None or disparity_on_button_press is None:
         print("No frames available yet")
         return
         
     print("Button pressed - performing object detection and distance measurement")
     
     # Convert rectified grayscale to BGR for object detection
-    rectified_color = cv2.cvtColor(rectified_pair[0], cv2.COLOR_GRAY2BGR)
+    rectified_color = cv2.cvtColor(current_pair[0], cv2.COLOR_GRAY2BGR)
     
-    # Use the rectified frame for object detection
     detected_objects = img_recognizer.predict_frame(rectified_color)
     print('OBJECTS')
     print(detected_objects)
+    
+    if SAVE_OUTPUT:
+        output = distance.create_detection_image(disparity_on_button_press, detected_objects)
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        cv2.imwrite(os.path.join(OUTPUT_DIR, OUTPUT_FILE), output)
     
     # Calculate distances for detected objects using current disparity
     object_distances = distance.calculate_object_distances(disparity_on_button_press, detected_objects)
     
     # Process and announce detected objects within threshold
-    for obj_name, distance_val, confidence, coords in object_distances:
-        if distance_val < THRESHOLD and CONFIDENCE <= confidence:
-            distance_ft = round(distance_val * 3.281, 2)
-            message = f"Warning: {obj_name} detected at {distance_val:.2f} meters ({distance_ft} feet)"
+    for obj_name, distance, confidence, coords in object_distances:
+        if distance < THRESHOLD and CONFIDENCE <= confidence:
+            distance_ft = round(distance * 3.281, 2)
+            message = f"Warning: {obj_name} detected at {distance:.2f} meters ({distance_ft} feet)"
             print(message)
             speak_async(message)
 
@@ -187,7 +196,7 @@ load_map_settings(SETTINGS_FILE)
 try:
     # Capture frames from the camera continuously
     while True:
-        global current_frame_left, current_frame_right, current_disparity, rectified_pair
+        global current_disparity, rectified_pair
         
         current_frame_left = camera_left.capture_array()
         current_frame_right = camera_right.capture_array()
