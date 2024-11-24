@@ -24,15 +24,26 @@
 
 import cv2
 import os, json
-from picamera.array import PiRGBArray
-from picamera import PiCamera
 from matplotlib import pyplot as plt
 from matplotlib.widgets import Slider, Button
 import matplotlib
 import numpy as np
 from stereovision.calibration import StereoCalibrator
 from stereovision.calibration import StereoCalibration
-matplotlib.use('TkAgg')
+# Try different matplotlib backends
+try:
+    import tkinter
+    import PIL
+    matplotlib.use('TkAgg')
+except ImportError:
+    try:
+        matplotlib.use('Qt5Agg')  # Try Qt backend
+    except ImportError:
+        try:
+            matplotlib.use('GTK3Agg')  # Try GTK backend
+        except ImportError:
+            matplotlib.use('Agg')  # Fallback to Agg backend
+            print("Warning: Using Agg backend. GUI interaction might be limited.")
 
 # Flag to laod settings
 loading_settings = 0 # 0 is not currently loading settings.
