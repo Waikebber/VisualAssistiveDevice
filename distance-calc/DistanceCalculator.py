@@ -1,4 +1,5 @@
 import numpy as np
+import cv2
 
 """File to calculate distances from disparity map.
 """
@@ -132,3 +133,47 @@ class DistanceCalculator:
             return min_distance, (min_x, min_y)
         else:
             return float('inf'), None
+    
+    def create_detection_image(self, disparity_map, detected_objects):
+        """Create visualization of disparity map with detected objects.
+        
+        Args:
+            disparity_map (np.array): Disparity map from stereo vision
+            detected_objects (list): List of tuples containing (obj_name, bbox, confidence)
+            
+        Returns:
+            np.array: Color image with bounding boxes and labels
+        """
+        # Normalize and colorize disparity map
+        local_max = disparity_map.max()
+        local_min = disparity_map.min()
+        disparity_grayscale = (disparity_map - local_min) * (65535.0 / (local_max - local_min))
+        disparity_fixtype = cv2.convertScaleAbs(disparity_grayscale, alpha=(255.0/65535.0))
+        disparity_color = cv2.applyColorMap(disparity_fixtype, cv2.COLORMAP_JET)
+        
+        # Draw bounding boxes and labels
+        for obj_name, bbox, confidence in detected_objects:
+            # Get box coordinates
+            x1, y1, x2, y2 = [int(coord) for coord in bbox[0]]
+            
+            # Draw bounding box
+            cv2.rectangle(disparity_color, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            
+            # Draw label background
+            label_size = cv2.getTextSize(obj_name, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)[0]
+            cv2.rectangle(disparity_color, 
+                        (x1, y1 - label_size[1] - 10),
+                        (x1 + label_size[0], y1),
+                        (0, 255, 0),
+                        -1)
+            
+            # Draw label text
+            cv2.putText(disparity_color,
+                    obj_name,
+                    (x1, y1 - 5),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    (0, 0, 0),
+                    2)
+        
+        return disparity_color
