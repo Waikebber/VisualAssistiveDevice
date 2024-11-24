@@ -1,4 +1,4 @@
-from picamera import PiCamera
+from picamera2 import Picamera2
 import time, os, json
 import cv2
 import numpy as np
@@ -6,9 +6,15 @@ from stereovision.calibration import StereoCalibrator
 from stereovision.calibration import StereoCalibration
 from datetime import datetime
 from math import tan, pi
+from camera.cam_config import initialize_camera
+
+THRESHOLD = 2.5   # Threshold in meters (2.5m)
+CONFIG_FILE = "./cam_config.json"
+SETTINGS_FILE = "./3dmap_set.txt"
+CALIB_RESULTS = './calib_result'
 
 # Load configuration from config.json
-config_path = "cam_config.json"
+config_path = CONFIG_FILE
 if not os.path.isfile(config_path):
     raise FileNotFoundError(f"Configuration file {config_path} not found.")
 with open(config_path, 'r') as config_file:
@@ -23,9 +29,6 @@ scale_ratio = float(config['scale_ratio'])           # Image scaling ratio (0.5)
 cam_width = int(config['image_width'])
 cam_height = int(config['image_height'])
 
-# Distance threshold for distance limit
-THRESHOLD = 1    # Threshold in meters (1m)
-
 # Stereo block matching parameters
 SWS = 15        # Block size (SADWindowSize) for stereo matching
 PFS = 9         # Pre-filter size to smooth image noise
@@ -37,7 +40,6 @@ UR = 10         # Uniqueness ratio to filter ambiguous matches
 SR = 14         # Speckle range to suppress noise in disparity map
 SPWS = 100      # Speckle window size for disparity filtering
 
-
 # Camera resolution height must be divisible by 16, and width by 32
 cam_width = int((cam_width + 31) / 32) * 32
 cam_height = int((cam_height + 15) / 16) * 16
@@ -47,22 +49,23 @@ print("Used camera resolution: " + str(cam_width) + " x " + str(cam_height))
 img_width = int(cam_width * scale_ratio)
 img_height = int(cam_height * scale_ratio)
 capture = np.zeros((img_height, img_width, 4), dtype=np.uint8)
-print("Scaled image resolution: " + str(img_width) + " x " + str(img_height))
+print("Image resolution: " + str(img_width) + " x " + str(img_height))
 
 # Focal length in pixels
-# focal_length_px = (FOCAL / SENSOR_WIDTH) * img_width  # Focal length in px without FOV
 focal_length_px = (img_width * 0.5) / tan(H_FOV * 0.5 * pi / 180) # Focal length in px with FOV
 print("Focal length: " + str(focal_length_px) + " px")
 
-# Initialize the camera
-camera = PiCamera(stereo_mode='side-by-side', stereo_decimate=False)
-camera.resolution = (cam_width, cam_height)
-camera.framerate = 20
-camera.hflip = True
+# Initialize the cameras
+camera_left = initialize_camera( 0, img_width, img_height)
+camera_right = initialize_camera( 1, img_width, img_height)
+
+# Start cameras
+camera_left.start()
+camera_right.start()
 
 # Implementing calibration data
 print('Read calibration data and rectifying stereo pair...')
-calibration = StereoCalibration(input_folder='calib_result')
+calibration = StereoCalibration(input_folder=CALIB_RESULTS)
 
 # Initialize interface windows
 cv2.namedWindow("Image")
@@ -78,9 +81,10 @@ sbm = cv2.StereoBM_create(numDisparities=NOD, blockSize=SWS)
 # Function to calculate the depth (distance) of the center pixel
 def calculate_distance(disparity, baseline, focal_length):
     # Get the center pixel coordinates
-    center_x = disparity.shape[1] // 2
-    center_y = disparity.shape[0] // 2
-    center_disparity = disparity[center_y, center_x]
+    normalized_disparity = disparity + 61.0
+    center_x = normalized_disparity.shape[1] // 2
+    center_y = normalized_disparity.shape[0] // 2
+    center_disparity = normalized_disparity[center_y, center_x]
     
     if center_disparity > 0:  # Ensure disparity is positive
         # Calculate the distance Z
@@ -92,7 +96,7 @@ def calculate_distance(disparity, baseline, focal_length):
 def stereo_depth_map(rectified_pair, baseline, focal_length):
     dmLeft = rectified_pair[0]
     dmRight = rectified_pair[1]
-    disparity = sbm.compute(dmLeft, dmRight)
+    disparity = sbm.compute(dmLeft, dmRight).astype(np.float32) / 16.0
     local_max = disparity.max()
     local_min = disparity.min()
 
@@ -145,16 +149,16 @@ def load_map_settings(fName):
     
     print('Parameters loaded from file ' + fName)
 
-load_map_settings("3dmap_set.txt")
+load_map_settings(SETTINGS_FILE)
 
 # Capture frames from the camera continuously
-for frame in camera.capture_continuous(capture, format="bgra", use_video_port=True, resize=(img_width, img_height)):
-    t1 = datetime.now()
-    
-    # Convert to grayscale and split stereo pair
-    pair_img = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    imgLeft = pair_img[0:img_height, 0:int(img_width / 2)]  # Left image
-    imgRight = pair_img[0:img_height, int(img_width / 2):img_width]  # Right image
+while True:
+    frame_left = camera_left.capture_array()
+    frame_right = camera_right.capture_array()
+
+    # Convert to grayscale
+    imgLeft = cv2.cvtColor(frame_left, cv2.COLOR_BGR2GRAY)
+    imgRight = cv2.cvtColor(frame_right, cv2.COLOR_BGR2GRAY)
     
     # Rectify the stereo pair using calibration data
     rectified_pair = calibration.rectify((imgLeft, imgRight))
@@ -165,6 +169,3 @@ for frame in camera.capture_continuous(capture, format="bgra", use_video_port=Tr
     # Show the left and right images
     cv2.imshow("left", imgLeft)
     cv2.imshow("right", imgRight)
-
-    t2 = datetime.now()
-    # print("DM build time: " + str(t2 - t1))
