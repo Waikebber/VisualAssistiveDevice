@@ -39,10 +39,10 @@ with open(config_path, 'r') as config_file:
 # Global variables preset
 total_photos = int(config['total_photos'])
 scale_ratio = float(config['scale_ratio'])
-photo_width =  int(int(config['image_width']) * scale_ratio)
-photo_height = int(int(config['image_height']) * scale_ratio) 
-img_width = photo_width // 2 
-img_height = photo_height
+img_width =  int(int(config['image_width']) * scale_ratio)
+img_height = int(int(config['image_height']) * scale_ratio) 
+photo_width = img_width * 2 
+photo_height = img_height
 image_size = (img_width, img_height)
 
 # Chessboard parameters
