@@ -10,11 +10,40 @@ from speakers import speak
 from camera.cam_config import initialize_camera
 import multiprocessing
 import RPi.GPIO as GPIO
+from distance_calculator.DistanceCalculator import DistanceCalculator
 
 THRESHOLD = 2.5   # Threshold in meters (2.5m)
 CONFIG_FILE = "stereo-calibration/cam_config.json"
 SETTINGS_FILE = "stereo-calibration/3dmap_set.txt"
 CALIB_RESULTS = 'stereo-calibration/calib_result'
+
+# Load configuration from config.json
+config_path = CONFIG_FILE
+if not os.path.isfile(config_path):
+    raise FileNotFoundError(f"Configuration file {config_path} not found.")
+with open(config_path, 'r') as config_file:
+    config = json.load(config_file)
+BASELINE = int(config['baseline_length_mm']) / 1000  # Baseline in m (60mm)
+FOCAL = int(config['focal_length_mm']) / 1000        # Focal length in m (2.6mm)
+SENSOR_WIDTH = float(config['cmos_size_m'])          # Sensor width in m (1/4in)
+H_FOV = int(config['field_of_view']['horizontal'])   # Horizontal field of view (73deg)
+scale_ratio = float(config['scale_ratio'])           # Image scaling ratio (0.5)
+cam_width = int(config['image_width'])
+cam_height = int(config['image_height'])
+
+# Camera resolution / image scaling / focal length
+cam_width = int((cam_width + 31) / 32) * 32
+cam_height = int((cam_height + 15) / 16) * 16
+print("Used camera resolution: " + str(cam_width) + " x " + str(cam_height))
+img_width = int(cam_width * scale_ratio)
+img_height = int(cam_height * scale_ratio)
+capture = np.zeros((img_height, img_width, 4), dtype=np.uint8)
+print("Image resolution: " + str(img_width) + " x " + str(img_height))
+focal_length_px = (img_width * 0.5) / tan(H_FOV * 0.5 * pi / 180) # Focal length in px with FOV
+print("Focal length: " + str(focal_length_px) + " px")
+
+# Initialize distance calculator
+distance = DistanceCalculator(BASELINE, FOCAL)
 
 GPIO.setmode(GPIO.BCM)
 BUTTON_PIN = 21
@@ -28,22 +57,6 @@ def on_button_press(channel):
     p.start()
 
 GPIO.add_event_detect(BUTTON_PIN, GPIO.RISING, callback = on_button_press, bouncetime = 200)
-
-# Load configuration from config.json
-config_path = CONFIG_FILE
-if not os.path.isfile(config_path):
-    raise FileNotFoundError(f"Configuration file {config_path} not found.")
-with open(config_path, 'r') as config_file:
-    config = json.load(config_file)
-    
-# Camera calibration parameters
-BASELINE = int(config['baseline_length_mm']) / 1000  # Baseline in m (60mm)
-FOCAL = int(config['focal_length_mm']) / 1000        # Focal length in m (2.6mm)
-SENSOR_WIDTH = float(config['cmos_size_m'])          # Sensor width in m (1/4in)
-H_FOV = int(config['field_of_view']['horizontal'])   # Horizontal field of view (73deg)
-scale_ratio = float(config['scale_ratio'])           # Image scaling ratio (0.5)
-cam_width = int(config['image_width'])
-cam_height = int(config['image_height'])
 
 # Stereo block matching parameters
 SWS = 15        # Block size (SADWindowSize) for stereo matching
@@ -62,8 +75,8 @@ cam_height = int((cam_height + 15) / 16) * 16
 print("Used camera resolution: " + str(cam_width) + " x " + str(cam_height))
 
 # Buffer for captured image settings
-img_width = cam_width
-img_height = cam_height
+img_width = int(cam_width * scale_ratio)
+img_height = int(cam_height * scale_ratio)
 capture = np.zeros((img_height, img_width, 4), dtype=np.uint8)
 print("Image resolution: " + str(img_width) + " x " + str(img_height))
 
@@ -71,10 +84,9 @@ print("Image resolution: " + str(img_width) + " x " + str(img_height))
 focal_length_px = (img_width * 0.5) / tan(H_FOV * 0.5 * pi / 180) # Focal length in px with FOV
 print("Focal length: " + str(focal_length_px) + " px")
 
-single_width = scale_ratio * img_width
 # Initialize the cameras
-camera_left = initialize_camera( 0, img_width//2, img_height)
-camera_right = initialize_camera( 1, img_width//2, img_height)
+camera_left = initialize_camera( 0, img_width, img_height)
+camera_right = initialize_camera( 1, img_width, img_height)
 
 # Start cameras
 camera_left.start()
@@ -103,22 +115,7 @@ def speak_async(text):
         audio_process = multiprocessing.Process(target = speak, args = (text, 3, 90))
         audio_process.start()
 
-# Function to calculate the depth (distance) of the center pixel
-def calculate_distance(disparity, baseline, focal_length):
-    # Get the center pixel coordinates
-    normalized_disparity = disparity + 61.0
-    center_x = normalized_disparity.shape[1] // 2
-    center_y = normalized_disparity.shape[0] // 2
-    center_disparity = normalized_disparity[center_y, center_x]
-    
-    if center_disparity > 0:  # Ensure disparity is positive
-        # Calculate the distance Z
-        distance = (focal_length * baseline) / center_disparity
-        return distance
-    else:
-        return float('inf')  # Infinite distance if disparity is zero or negative
-
-def stereo_depth_map(rectified_pair, baseline, focal_length):
+def stereo_depth_map(rectified_pair):
     dmLeft = rectified_pair[0]
     dmRight = rectified_pair[1]
     disparity = sbm.compute(dmLeft, dmRight).astype(np.float32) / 16.0
@@ -134,7 +131,7 @@ def stereo_depth_map(rectified_pair, baseline, focal_length):
     cv2.imshow("Image", disparity_color)
     
     # Calculate and print the distance of the center pixel
-    center_distance = calculate_distance(disparity, baseline, focal_length)
+    center_distance = distance.calculate_center_distance(disparity)
     center_distance = round(center_distance, 4)
     thresh_ft = round(THRESHOLD * 3.281, 3)
     dist_ft = round(center_distance * 3.281, 3)
