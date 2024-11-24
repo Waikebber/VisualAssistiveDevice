@@ -21,7 +21,6 @@
 # Thanks to Adrian and http://pyimagesearch.com, as there are lot of
 # code in this tutorial was taken from his lessons.
 # 
-
 import cv2
 import os, json
 from matplotlib import pyplot as plt
@@ -30,7 +29,6 @@ import matplotlib
 import numpy as np
 from stereovision.calibration import StereoCalibrator
 from stereovision.calibration import StereoCalibration
-# Try different matplotlib backends
 try:
     import tkinter
     import PIL
@@ -44,6 +42,7 @@ except ImportError:
         except ImportError:
             matplotlib.use('Agg')  # Fallback to Agg backend
             print("Warning: Using Agg backend. GUI interaction might be limited.")
+
 
 # Flag to laod settings
 loading_settings = 0 # 0 is not currently loading settings.
@@ -59,10 +58,10 @@ with open(config_path, 'r') as config_file:
 # Global variables preset
 imageToDisp = './photo.png'
 scale_ratio = float(config['scale_ratio'])
-photo_width = int(int(config['image_width']) * scale_ratio)
-photo_height = int(int(config['image_height']) * scale_ratio)
-image_height = photo_height
-image_width = photo_width // 2
+image_width = int(int(config['image_width']) * scale_ratio)
+image_height = int(int(config['image_height']) * scale_ratio)
+photo_height = image_height
+photo_width = image_width * 2
 image_size = (image_width, image_height)
 
 if os.path.isfile(imageToDisp) == False:
