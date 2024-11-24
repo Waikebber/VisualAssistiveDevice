@@ -48,7 +48,7 @@ project_root/
 ├── speakers/               # Audio feedback package
 │   ├── __init__.py
 │   └── generative_audio.py # Text-to-speech function
-└── stereo-calibration/     # Calibration files
+└── stereo_calibration/     # Calibration files
     ├── cam_config.json     # Camera configuration
     ├── 3dmap_set.txt      # Stereo matching parameters
     └── calib_result/      # Camera calibration data
@@ -57,7 +57,7 @@ project_root/
 ## Configuration
 
 1. Camera Setup
-   - Modify `stereo-calibration/cam_config.json` for your camera parameters
+   - Modify `stereo_calibration/cam_config.json` for your camera parameters
    - Baseline distance
    - Field of view
    - Resolution settings
@@ -106,8 +106,8 @@ The system provides audio notifications for:
 
 The stereo cameras need to be calibrated before use:
 1. Use calibration patterns
-2. Save calibration data to `stereo-calibration/calib_result/`
-3. Adjust stereo matching parameters in `stereo-calibration/3dmap_set.txt`
+2. Save calibration data to `stereo_calibration/calib_result/`
+3. Adjust stereo matching parameters in `stereo_calibration/3dmap_set.txt`
 
 ## Performance Considerations
 

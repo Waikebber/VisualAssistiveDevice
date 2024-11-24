@@ -15,9 +15,9 @@ from distance_calculator.DistanceCalculator import DistanceCalculator
 
 CONFIDENCE = 0.6
 THRESHOLD = 2.5   # Threshold in meters (2.5m)
-CONFIG_FILE = "stereo-calibration/cam_config.json"
-SETTINGS_FILE = "stereo-calibration/3dmap_set.txt"
-CALIB_RESULTS = 'stereo-calibration/calib_result'
+CONFIG_FILE = "stereo_calibration/cam_config.json"
+SETTINGS_FILE = "stereo_calibration/3dmap_set.txt"
+CALIB_RESULTS = 'stereo_calibration/calib_result'
 
 # Load configuration from config.json
 config_path = CONFIG_FILE
