@@ -57,33 +57,41 @@ BUTTON_PIN = 21
 GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 def button_press_action():
-    global current_frame_left, current_disparity, distance
-    disparity_on_button_press = current_disparity
-    
-    if current_frame_left is None or disparity_on_button_press is None or distance is None:
+    global current_frame_left, current_frame_right, current_disparity, calibration
+    if current_frame_left is None or current_frame_right is None:
         print("No frames available yet")
         return
-        
+
     print("Button pressed - performing object detection and distance measurement")
     
-    # Use the current frame for object detection
-    detected_objects = img_recognizer.predict_frame(current_frame_left)
-    print('OBJECTS')
-    print(detected_objects)
+    # Convert frames to grayscale for rectification
+    gray_left = cv2.cvtColor(current_frame_left, cv2.COLOR_BGR2GRAY)
+    gray_right = cv2.cvtColor(current_frame_right, cv2.COLOR_BGR2GRAY)
+    
+    # Rectify the stereo pair
+    rectified_pair = calibration.rectify((gray_left, gray_right))
+    rectified_left = cv2.cvtColor(rectified_pair[0], cv2.COLOR_GRAY2BGR)
+    
+    # Perform object detection on the rectified left image
+    detected_objects = img_recognizer.predict_frame(rectified_left)
+    
+    # The bounding boxes will now be in rectified coordinates
+    bounding_boxes = [
+        (x, y, w, h, label, distance.calculate_distance(x + w//2, y + h//2, current_disparity))
+        for label, (x, y, w, h), confidence in detected_objects
+        if confidence >= CONFIDENCE
+    ]
     
     if SAVE_OUTPUT:
-        output = distance.create_detection_image(disparity_on_button_press, detected_objects)
+        output = distance.create_detection_image(current_disparity, bounding_boxes)
         os.makedirs(OUTPUT_DIR, exist_ok=True)
-        cv2.imwrite(os.join(OUTPUT_DIR, OUTPUT_FILE), output)
+        cv2.imwrite(os.path.join(OUTPUT_DIR, OUTPUT_FILE), output)
     
-    # Calculate distances for detected objects using current disparity
-    object_distances = distance.calculate_object_distances(disparity_on_button_press, detected_objects)
-    
-    # Process and announce detected objects within threshold
-    for obj_name, distance, confidence, coords in object_distances:
-        if distance < THRESHOLD and CONFIDENCE <= confidence:
-            distance_ft = round(distance * 3.281, 2)
-            message = f"Warning: {obj_name} detected at {distance:.2f} meters ({distance_ft} feet)"
+    # Process and announce detected objects
+    for x, y, w, h, label, obj_distance in bounding_boxes:
+        if obj_distance < THRESHOLD:
+            distance_ft = round(obj_distance * 3.281, 2)
+            message = f"Warning: {label} detected at {obj_distance:.2f} meters ({distance_ft} feet)"
             print(message)
             speak_async(message)
 
@@ -134,30 +142,25 @@ def speak_async(text):
         audio_process = multiprocessing.Process(target=speak, args=(text, 3, 90))
         audio_process.start()
 
-def stereo_depth_map(rectified_pair, baseline, focal_length):
-    dmLeft = rectified_pair[0]
-    dmRight = rectified_pair[1]
+def stereo_depth_map(rectified_pair, baseline, focal_length, bounding_boxes=None):
+    dmLeft, dmRight = rectified_pair
     disparity = sbm.compute(dmLeft, dmRight).astype(np.float32) / 16.0
     local_max = disparity.max()
     local_min = disparity.min()
 
-    # Improved normalization and visualization of the depth map
+    # Normalize and visualize the disparity map
     disparity_grayscale = (disparity - local_min) * (65535.0 / (local_max - local_min))
     disparity_fixtype = cv2.convertScaleAbs(disparity_grayscale, alpha=(255.0 / 65535.0))
     disparity_color = cv2.applyColorMap(disparity_fixtype, cv2.COLORMAP_JET)
     
-    # Show the depth map
+    # Overlay bounding boxes (now in rectified coordinates)
+    if bounding_boxes:
+        for x, y, w, h, label, obj_distance in bounding_boxes:
+            cv2.rectangle(disparity_color, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            text = f"{label} ({obj_distance:.2f}m)"
+            cv2.putText(disparity_color, text, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+    
     cv2.imshow("Image", disparity_color)
-    
-    # Calculate and print the distance of the center pixel
-    center_distance = distance.calculate_center_distance(disparity)
-    center_distance = round(center_distance, 4)
-    thresh_ft = round(THRESHOLD * 3.281, 3)
-    dist_ft = round(center_distance * 3.281, 3)
-    if center_distance < THRESHOLD:
-        print(f"Threshold({THRESHOLD}m={thresh_ft}ft) breached, center: {center_distance}m = {dist_ft}ft")
-        speak_async(f"Threshold({THRESHOLD}m={thresh_ft}ft) breached, center: {center_distance}m = {dist_ft}ft")
-    
     return disparity_color, disparity
 
 def load_map_settings(fName):
@@ -192,7 +195,6 @@ load_map_settings(SETTINGS_FILE)
 
 
 try:
-    # Capture frames from the camera continuously
     while True:
         global current_frame_left, current_frame_right, current_disparity
         
@@ -206,14 +208,13 @@ try:
         # Rectify the stereo pair using calibration data
         rectified_pair = calibration.rectify((imgLeft, imgRight))
         
-        # Generate and display the depth map, and calculate center distance
+        # Generate and display the depth map
         disparity_color, current_disparity = stereo_depth_map(rectified_pair, BASELINE, focal_length_px)
         
-        # Show the left and right images
-        cv2.imshow("left", imgLeft)
-        cv2.imshow("right", imgRight)
+        # Show the rectified images
+        cv2.imshow("left", rectified_pair[0])
+        cv2.imshow("right", rectified_pair[1])
         
-        # Check for 'q' key to quit
         key = cv2.waitKey(1) & 0xFF
         if key == ord("q"):
             break
