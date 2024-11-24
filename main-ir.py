@@ -18,6 +18,10 @@ CONFIG_FILE = "stereo_calibration/cam_config.json"
 SETTINGS_FILE = "stereo_calibration/3dmap_set.txt"
 CALIB_RESULTS = 'stereo_calibration/calib_result'
 
+SAVE_OUTPUT = True
+OUTPUT_DIR = 'output'
+OUTPUT_FILE = 'output.png'
+
 # Load configuration from config.json
 config_path = CONFIG_FILE
 if not os.path.isfile(config_path):
@@ -53,10 +57,10 @@ BUTTON_PIN = 21
 GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 def button_press_action():
-    global current_frame_left, current_disparity
+    global current_frame_left, current_disparity, distance
     disparity_on_button_press = current_disparity
     
-    if current_frame_left is None or disparity_on_button_press is None:
+    if current_frame_left is None or disparity_on_button_press is None or distance is None:
         print("No frames available yet")
         return
         
@@ -66,6 +70,11 @@ def button_press_action():
     detected_objects = img_recognizer.predict_frame(current_frame_left)
     print('OBJECTS')
     print(detected_objects)
+    
+    if SAVE_OUTPUT:
+        output = distance.create_detection_image(disparity_on_button_press, detected_objects)
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        cv2.imwrite(os.join(OUTPUT_DIR, OUTPUT_FILE), output)
     
     # Calculate distances for detected objects using current disparity
     object_distances = distance.calculate_object_distances(disparity_on_button_press, detected_objects)
@@ -180,6 +189,7 @@ def load_map_settings(fName):
     print('Parameters loaded from file ' + fName)
 
 load_map_settings(SETTINGS_FILE)
+
 
 try:
     # Capture frames from the camera continuously
