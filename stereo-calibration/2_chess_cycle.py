@@ -22,12 +22,13 @@
 # code in this tutorial was taken from his lessons.
 # 
 
-import os, time, json
+import os
+import time
+import json
 from datetime import datetime
-import picamera
-from picamera import PiCamera
 import cv2
 import numpy as np
+from camera.cam_config import initialize_camera
 
 # Load Camera settings
 config_path = "cam_config.json"
@@ -36,8 +37,9 @@ if not os.path.isfile(config_path):
 with open(config_path, 'r') as config_file:
     config = json.load(config_file)
     
-if (os.path.isdir("./scenes")==False):
-            os.makedirs("./scenes")
+# Create scenes directory if it doesn't exist
+if not os.path.isdir("./scenes"):
+    os.makedirs("./scenes")
 
 # Photo session settings
 total_photos = int(config['total_photos'])
@@ -57,44 +59,65 @@ print("Used camera resolution: " + str(cam_width) + " x " + str(cam_height))
 # Buffer for captured image settings
 img_width = int(cam_width * scale_ratio)
 img_height = int(cam_height * scale_ratio)
-capture = np.zeros((img_height, img_width, 4), dtype=np.uint8)
 print("Scaled image resolution: " + str(img_width) + " x " + str(img_height))
 
-# Initialize the camera
-camera = PiCamera(stereo_mode='side-by-side', stereo_decimate=False)
-camera.resolution = (cam_width, cam_height)
-camera.framerate = 20  # Adjust based on system performance at higher resolution
-camera.hflip = True
+# Initialize the cameras
+camera_left = initialize_camera(0, img_width, img_height)
+camera_right = initialize_camera(1, img_width, img_height)
+
+# Start cameras
+camera_left.start()
+camera_right.start()
 
 # Start taking photos! 
 counter = 0
 t2 = datetime.now()
 print("Starting photo sequence")
-for frame in camera.capture_continuous(capture, format="bgra", \
-                  use_video_port=True, resize=(img_width, img_height)):
-    t1 = datetime.now()
-    cntdwn_timer = countdown - int((t1 - t2).total_seconds())
-    
-    # If countdown is zero - record the next image
-    if cntdwn_timer == -1:
-        counter += 1
-        filename = './scenes/scene_' + str(img_width) + 'x' + str(img_height) + '_' + \
-                   str(counter) + '.png'
-        cv2.imwrite(filename, frame)
-        print(' [' + str(counter) + ' of ' + str(total_photos) + '] ' + filename)
-        t2 = datetime.now()
-        time.sleep(1)
-        cntdwn_timer = 0  # To avoid "-1" timer display
-        next
 
-    # Draw countdown counter, seconds
-    cv2.putText(frame, str(cntdwn_timer), (50, 50), font, 2.0, (0, 0, 255), 4, cv2.LINE_AA)
-    cv2.imshow("pair", frame)
-    key = cv2.waitKey(1) & 0xFF
+try:
+    while True:
+        # Capture frames from both cameras
+        frameL = camera_left.capture_array()
+        frameR = camera_right.capture_array()
+        
+        # Combine frames side by side
+        frame = np.hstack((frameL, frameR))
+        
+        t1 = datetime.now()
+        cntdwn_timer = countdown - int((t1 - t2).total_seconds())
+        
+        # If countdown is zero - record the next image
+        if cntdwn_timer == -1:
+            counter += 1
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f'./scenes/stereo_{img_width}x{img_height}_{counter}_{timestamp}.png'
+            cv2.imwrite(filename, frame)
+            print(f' [{counter} of {total_photos}] {filename}')
+            t2 = datetime.now()
+            time.sleep(1)
+            cntdwn_timer = countdown  # Reset timer
+            
+            if counter >= total_photos:
+                print("Completed all photos")
+                break
 
-    # Press 'Q' key to quit, or wait till all photos are taken
-    if (key == ord("q")) or (counter == total_photos):
-        break
+        # Draw countdown counter, seconds
+        cv2.putText(frame, str(max(0, cntdwn_timer)), (50, 50), font, 2.0, (0, 0, 255), 4, cv2.LINE_AA)
+        
+        # Add labels to identify left and right frames
+        cv2.putText(frame, "LEFT", (50, img_height - 50), font, 1.0, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(frame, "RIGHT", (img_width + 50, img_height - 50), font, 1.0, (255, 255, 255), 2, cv2.LINE_AA)
+        
+        cv2.imshow("Stereo Pair", frame)
+        key = cv2.waitKey(1) & 0xFF
 
-print("Photo sequence finished")
+        # Press 'Q' key to quit
+        if key == ord("q"):
+            break
 
+finally:
+    # Cleanup
+    print("Photo sequence finished")
+    camera_left.stop()
+    camera_right.stop()
+    cv2.destroyAllWindows()
