@@ -1,4 +1,3 @@
-from picamera2 import Picamera2
 import time, os, json
 import cv2
 import numpy as np
@@ -7,7 +6,7 @@ from stereovision.calibration import StereoCalibration
 from datetime import datetime
 from math import tan, pi
 from speakers import speak
-from stereo_calibration.camera.cam_config import initialize_camera
+from camera.cam_config import initialize_camera
 import multiprocessing
 import RPi.GPIO as GPIO
 from image_rec.img_rec import ImgRec
@@ -15,9 +14,9 @@ from distance_calculator.DistanceCalculator import DistanceCalculator
 
 CONFIDENCE = 0.6
 THRESHOLD = 2.5   # Threshold in meters (2.5m)
-CONFIG_FILE = "stereo_calibration/cam_config.json"
-SETTINGS_FILE = "stereo_calibration/3dmap_set.txt"
-CALIB_RESULTS = 'stereo_calibration/calib_result'
+CONFIG_FILE = "stereo-calibration/cam_config.json"
+SETTINGS_FILE = "stereo-calibration/3dmap_set.txt"
+CALIB_RESULTS = 'stereo-calibration/calib_result'
 
 # Load configuration from config.json
 config_path = CONFIG_FILE
@@ -46,7 +45,7 @@ print("Focal length: " + str(focal_length_px) + " px")
 
 # Initialize the image recognition model and distance calculator
 img_recognizer = ImgRec()
-distance = DistanceCalculator(BASELINE, FOCAL)
+distance = DistanceCalculator(BASELINE, focal_length_px)
 
 # GPIO Setup
 GPIO.setmode(GPIO.BCM)
