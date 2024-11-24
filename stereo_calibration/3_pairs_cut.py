@@ -36,10 +36,10 @@ with open(config_path, 'r') as config_file:
 # Global variables preset
 total_photos = int(config['total_photos'])
 scale_ratio = float(config['scale_ratio'])
-photo_width = int(int(config['image_width']) * scale_ratio)
-photo_height = int(int(config['image_height']) * scale_ratio)
-img_height = photo_height  
-img_width = photo_width // 2
+img_width = int(int(config['image_width']) * scale_ratio)
+img_height = int(int(config['image_height']) * scale_ratio)
+photo_width = img_width * 2
+
 photo_counter = 0
 
 # Main pair cut cycle
@@ -48,7 +48,7 @@ if (os.path.isdir("./pairs") == False):
 
 while photo_counter != total_photos:
     photo_counter += 1
-    filename = './scenes/scene_' + str(photo_width) + 'x' + str(photo_height) + \
+    filename = './scenes/scene_' + str(img_width) + 'x' + str(img_height) + \
                '_' + str(photo_counter) + '.png'
     
     if os.path.isfile(filename) == False:
