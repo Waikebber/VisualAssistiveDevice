@@ -7,7 +7,7 @@ from stereovision.calibration import StereoCalibration
 from datetime import datetime
 from math import tan, pi
 from speakers import speak
-from camera.cam_config import initialize_camera
+from stereo_calibration.camera.cam_config import initialize_camera
 import multiprocessing
 import RPi.GPIO as GPIO
 from image_rec.img_rec import ImgRec
