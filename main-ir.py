@@ -11,6 +11,7 @@ import multiprocessing
 import RPi.GPIO as GPIO
 from image_rec.img_rec import ImgRec
 from distance_calculator.DistanceCalculator import DistanceCalculator
+from stereo_calibration.tuning_helper import load_map_settings_with_sbm
 
 CONFIDENCE = 0.6
 THRESHOLD = 2.5   # Threshold in meters (2.5m)
@@ -83,10 +84,10 @@ def button_press_action():
     object_distances = distance.calculate_object_distances(disparity_on_button_press, detected_objects)
     
     # Process and announce detected objects within threshold
-    for obj_name, distance, confidence, coords in object_distances:
-        if distance < THRESHOLD and CONFIDENCE <= confidence:
-            distance_ft = round(distance * 3.281, 2)
-            message = f"Warning: {obj_name} detected at {distance:.2f} meters ({distance_ft} feet)"
+    for obj_name, distance_val, confidence, coords in object_distances:
+        if distance_val < THRESHOLD and CONFIDENCE <= confidence:
+            distance_ft = round(distance_val * 3.281, 2)
+            message = f"Warning: {obj_name} detected at {distance_val:.2f} meters ({distance_ft} feet)"
             print(message)
             speak_async(message)
 
@@ -95,17 +96,6 @@ def on_button_press(channel):
     p.start()
 
 GPIO.add_event_detect(BUTTON_PIN, GPIO.RISING, callback=on_button_press, bouncetime=200)
-
-# Stereo block matching parameters
-SWS = 15        # Block size (SADWindowSize) for stereo matching
-PFS = 9         # Pre-filter size to smooth image noise
-PFC = 29        # Pre-filter cap (intensity normalization)
-MDS = -30       # Minimum disparity for close-range depth calculation
-NOD = 16 * 9    # Number of disparities (multiple of 16)
-TTH = 100       # Texture threshold for disparity computation
-UR = 10         # Uniqueness ratio to filter ambiguous matches
-SR = 14         # Speckle range to suppress noise in disparity map
-SPWS = 100      # Speckle window size for disparity filtering
 
 # Initialize the cameras
 camera_left = initialize_camera(1, img_width, img_height)
@@ -127,8 +117,8 @@ cv2.moveWindow("left", 450, 100)
 cv2.namedWindow("right")
 cv2.moveWindow("right", 850, 100)
 
-# Initialize the StereoBM (Block Matching) object with updated parameters
-sbm = cv2.StereoBM_create(numDisparities=NOD, blockSize=SWS)
+# Load map settings and initialize the StereoBM (Block Matching) object with updated parameters
+sbm = load_map_settings_with_sbm(SETTINGS_FILE)
 
 audio_process = None
 def speak_async(text):
@@ -164,43 +154,14 @@ def stereo_depth_map(rectified_pair, baseline, focal_length):
         print(message)
         speak_async(message)
 
-        # Draw a white circle at the location of the closest object
-    cv2.circle(disparity_color, closest_region_center, 10, (255, 255, 255), -1)
+    # Draw a white circle at the location of the closest object
+    if closest_region_center is not None:
+        cv2.circle(disparity_color, closest_region_center, 10, (255, 255, 255), -1)
 
     # Show the updated depth map with detected object
     cv2.imshow("Image", disparity_color)
 
     return disparity_color, disparity
-
-def load_map_settings(fName):
-    global SWS, PFS, PFC, MDS, NOD, TTH, UR, SR, SPWS
-    print('Loading parameters from file...')
-    with open(fName, 'r') as f:
-        data = json.load(f)
-        SWS = data['SADWindowSize']
-        PFS = data['preFilterSize']
-        PFC = data['preFilterCap']
-        MDS = data['minDisparity']
-        NOD = data['numberOfDisparities']
-        TTH = data['textureThreshold']
-        UR = data['uniquenessRatio']
-        SR = data['speckleRange']
-        SPWS = data['speckleWindowSize']
-
-        # Apply loaded parameters to StereoBM object
-        sbm.setPreFilterType(1)
-        sbm.setPreFilterSize(PFS)
-        sbm.setPreFilterCap(PFC)
-        sbm.setMinDisparity(MDS)
-        sbm.setNumDisparities(NOD)
-        sbm.setTextureThreshold(TTH)
-        sbm.setUniquenessRatio(UR)
-        sbm.setSpeckleRange(SR)
-        sbm.setSpeckleWindowSize(SPWS)
-    
-    print('Parameters loaded from file ' + fName)
-
-load_map_settings(SETTINGS_FILE)
 
 try:
     # Start the main processing loop
@@ -219,17 +180,14 @@ try:
         # Generate and display the depth map
         disparity_color, current_disparity = stereo_depth_map(rectified_pair, BASELINE, focal_length_px)
 
-
         # Display rectified images and disparity map
         cv2.imshow("Left", rectified_pair[0])
         cv2.imshow("Right", rectified_pair[1])
-
 
         # Check for quit command
         key = cv2.waitKey(1) & 0xFF
         if key == ord("q"):
             break
-
 
 except Exception as e:
     # Log any errors that occur during the loop
