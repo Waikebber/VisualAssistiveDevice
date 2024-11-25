@@ -45,36 +45,13 @@ while photo_counter != total_photos:
         imgRight = cv2.imread(rightName, 1)
         
         try:
-            # Find corners for both images
-            found_left, corners_left = cv2.findChessboardCorners(imgLeft, (columns, rows), None)
-            found_right, corners_right = cv2.findChessboardCorners(imgRight, (columns, rows), None)
-
-            if found_left and found_right:
-                # Refine corner positions for better accuracy
-                criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-                corners_left = cv2.cornerSubPix(cv2.cvtColor(imgLeft, cv2.COLOR_BGR2GRAY), corners_left, (11, 11), (-1, -1), criteria)
-                corners_right = cv2.cornerSubPix(cv2.cvtColor(imgRight, cv2.COLOR_BGR2GRAY), corners_right, (11, 11), (-1, -1), criteria)
-
-                # Draw and display the corners on both images
-                cv2.drawChessboardCorners(imgLeft, (columns, rows), corners_left, found_left)
-                cv2.drawChessboardCorners(imgRight, (columns, rows), corners_right, found_right)
-
-                # Display images for manual inspection
-                cv2.imshow('Left Image with Corners', imgLeft)
-                cv2.imshow('Right Image with Corners', imgRight)
-                cv2.waitKey(500)  # Wait for 500 ms for each image, adjust as needed
-
-                # Add the corners to the calibrator
-                calibrator.add_corners((imgLeft, imgRight), True)
-            else:
-                print(f"Chessboard corners not found for pair No {photo_counter}. Skipping.")
-        
+            # Add corners to the calibrator directly (calibrator will handle finding corners)
+            calibrator.add_corners((imgLeft, imgRight), True)
         except ChessboardNotFoundError as error:
             print(error)
-            print(f"Pair No {photo_counter} ignored")
+            print("Pair No " + str(photo_counter) + " ignored")
         
 print('End cycle')
-cv2.destroyAllWindows()  # Close all the displayed windows
 
 print('Starting calibration... It can take several minutes!')
 # Calibrate the stereo camera system
