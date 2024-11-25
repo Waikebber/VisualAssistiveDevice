@@ -161,6 +161,36 @@ class DistanceCalculator:
             return min_distance, (min_x, min_y) + 1
         else:
             return float('inf'), None
+
+    def analyze_disparity_distribution(self, disparity_map):
+        """Analyze the disparity map to find the closest object using Gaussian distribution.
+        
+        Args:
+            disparity_map (np.array): Disparity map from stereo vision
+            
+        Returns:
+            tuple: (closest_distance, mean_distance, std_distance)
+                   Closest distance is the value in the left tail of the distribution.
+        """
+        # Normalize the disparity map
+        normalized_disparity = disparity_map + 61.0
+        valid_disparities = normalized_disparity[normalized_disparity > 0]
+        
+        if valid_disparities.size == 0:
+            return float('inf'), None, None  # No valid disparities
+        
+        # Convert disparities to distances
+        distances = (self.focal_length * self.baseline) / valid_disparities
+        
+        # Fit Gaussian distribution to distances
+        mean_distance = np.mean(distances)
+        std_distance = np.std(distances)
+        
+        # Identify the closest distance (e.g., mean - 2 * std_dev)
+        cutoff_distance = mean_distance - 2 * std_distance
+        closest_distance = distances[distances <= cutoff_distance].min(initial=float('inf'))
+        
+        return closest_distance, mean_distance, std_distance
     
     def create_detection_image(self, disparity_map, detected_objects):
         """Create visualization of disparity map with detected objects.
