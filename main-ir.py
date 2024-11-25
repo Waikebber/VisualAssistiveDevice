@@ -11,7 +11,9 @@ import multiprocessing
 import RPi.GPIO as GPIO
 from image_rec.img_rec import ImgRec
 from distance_calculator.DistanceCalculator import DistanceCalculator
-from stereo_calibration.tuning_helper import load_map_settings_with_sbm
+from stereo_calibration.tuning_helper import load_map_settings_with_sgbm, load_map_settings_with_sbm
+
+USE_SGBM = False
 
 CONFIDENCE = 0.6
 THRESHOLD = 2.5   # Threshold in meters (2.5m)
@@ -118,7 +120,10 @@ cv2.namedWindow("right")
 cv2.moveWindow("right", 850, 100)
 
 # Load map settings and initialize the StereoBM (Block Matching) object with updated parameters
-sbm = load_map_settings_with_sbm(SETTINGS_FILE)
+if USE_SGBM:
+    sbm = load_map_settings_with_sgbm(SETTINGS_FILE)
+else:
+    sbm = load_map_settings_with_sbm(SETTINGS_FILE)
 
 audio_process = None
 def speak_async(text):
@@ -127,7 +132,7 @@ def speak_async(text):
         audio_process = multiprocessing.Process(target=speak, args=(text, 3, 90))
         audio_process.start()
 
-def stereo_depth_map(rectified_pair, baseline, focal_length):
+def stereo_depth_map(rectified_pair):
     dmLeft = rectified_pair[0]
     dmRight = rectified_pair[1]
     disparity = sbm.compute(dmLeft, dmRight).astype(np.float32) / 16.0
@@ -178,7 +183,7 @@ try:
         rectified_pair = calibration.rectify((imgLeft, imgRight))
     
         # Generate and display the depth map
-        disparity_color, current_disparity = stereo_depth_map(rectified_pair, BASELINE, focal_length_px)
+        disparity_color, current_disparity = stereo_depth_map(rectified_pair)
 
         # Display rectified images and disparity map
         cv2.imshow("Left", rectified_pair[0])

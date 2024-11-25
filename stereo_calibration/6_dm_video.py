@@ -1,12 +1,12 @@
-from picamera2 import Picamera2
 import time, os, json
 import cv2
 import numpy as np
-from stereovision.calibration import StereoCalibrator
 from stereovision.calibration import StereoCalibration
 from datetime import datetime
 from math import tan, pi
 from camera.cam_config import initialize_camera
+from tuning_helper import load_map_settings_with_sbm
+
 
 THRESHOLD = 2.5   # Threshold in meters (2.5m)
 CONFIG_FILE = "./cam_config.json"
@@ -28,17 +28,6 @@ H_FOV = int(config['field_of_view']['horizontal'])   # Horizontal field of view 
 scale_ratio = float(config['scale_ratio'])           # Image scaling ratio (0.5)
 cam_width = int(config['image_width'])
 cam_height = int(config['image_height'])
-
-# Stereo block matching parameters
-SWS = 15        # Block size (SADWindowSize) for stereo matching
-PFS = 9         # Pre-filter size to smooth image noise
-PFC = 29        # Pre-filter cap (intensity normalization)
-MDS = -30       # Minimum disparity for close-range depth calculation
-NOD = 16 * 9    # Number of disparities (multiple of 16)
-TTH = 100       # Texture threshold for disparity computation
-UR = 10         # Uniqueness ratio to filter ambiguous matches
-SR = 14         # Speckle range to suppress noise in disparity map
-SPWS = 100      # Speckle window size for disparity filtering
 
 # Camera resolution height must be divisible by 16, and width by 32
 cam_width = int((cam_width + 31) / 32) * 32
@@ -76,7 +65,7 @@ cv2.namedWindow("right")
 cv2.moveWindow("right", 850, 100)
 
 # Initialize the StereoBM (Block Matching) object with updated parameters
-sbm = cv2.StereoBM_create(numDisparities=NOD, blockSize=SWS)
+sbm = load_map_settings_with_sbm(SETTINGS_FILE)
 
 # Function to calculate the depth (distance) of the center pixel
 def calculate_distance(disparity, baseline, focal_length):
@@ -120,36 +109,6 @@ def stereo_depth_map(rectified_pair, baseline, focal_length):
     if key == ord("q"):
         quit()
     return disparity_color
-
-def load_map_settings(fName):
-    global SWS, PFS, PFC, MDS, NOD, TTH, UR, SR, SPWS
-    print('Loading parameters from file...')
-    with open(fName, 'r') as f:
-        data = json.load(f)
-        SWS = data['SADWindowSize']
-        PFS = data['preFilterSize']
-        PFC = data['preFilterCap']
-        MDS = data['minDisparity']
-        NOD = data['numberOfDisparities']
-        TTH = data['textureThreshold']
-        UR = data['uniquenessRatio']
-        SR = data['speckleRange']
-        SPWS = data['speckleWindowSize']
-
-        # Apply loaded parameters to StereoBM object
-        sbm.setPreFilterType(1)
-        sbm.setPreFilterSize(PFS)
-        sbm.setPreFilterCap(PFC)
-        sbm.setMinDisparity(MDS)
-        sbm.setNumDisparities(NOD)
-        sbm.setTextureThreshold(TTH)
-        sbm.setUniquenessRatio(UR)
-        sbm.setSpeckleRange(SR)
-        sbm.setSpeckleWindowSize(SPWS)
-    
-    print('Parameters loaded from file ' + fName)
-
-load_map_settings(SETTINGS_FILE)
 
 # Capture frames from the camera continuously
 while True:
