@@ -195,34 +195,49 @@ def load_map_settings(fName):
 load_map_settings(SETTINGS_FILE)
 
 try:
-    # Capture frames from the camera continuously
+    # Start the main processing loop
     while True:
-        global current_disparity, rectified_pair
-        
+        # Capture frames
         current_frame_left = camera_left.capture_array()
         current_frame_right = camera_right.capture_array()
-
+    
         # Convert to grayscale
         imgLeft = cv2.cvtColor(current_frame_left, cv2.COLOR_BGR2GRAY)
         imgRight = cv2.cvtColor(current_frame_right, cv2.COLOR_BGR2GRAY)
-        
-        # Rectify the stereo pair using calibration data and store globally
+    
+        # Rectify the stereo pair
         rectified_pair = calibration.rectify((imgLeft, imgRight))
-        
-        # Generate and display the depth map, and calculate center distance
+    
+        # Generate and display the depth map
         disparity_color, current_disparity = stereo_depth_map(rectified_pair, BASELINE, focal_length_px)
-        
-        # Show the left and right images
-        cv2.imshow("left", imgLeft)
-        cv2.imshow("right", imgRight)
-        
-        # Check for 'q' key to quit
+    
+        # Analyze the disparity map for the closest object
+        closest_distance, mean_distance, std_distance = distance.analyze_disparity_distribution(
+            current_disparity
+        )
+    
+        # Notify the user if a close object is detected
+        if closest_distance < THRESHOLD:
+            message = f"Closest object detected at {closest_distance:.2f} meters."
+            print(message)
+            speak_async(message)
+    
+        # Display rectified images and disparity map
+        cv2.imshow("Left", rectified_pair[0])
+        cv2.imshow("Right", rectified_pair[1])
+        cv2.imshow("Disparity", disparity_color)
+    
+        # Check for quit command
         key = cv2.waitKey(1) & 0xFF
         if key == ord("q"):
             break
 
+except Exception as e:
+    # Log any errors that occur during the loop
+    print(f"Error during processing: {e}")
+
 finally:
-    # Cleanup
+    # Ensure cleanup happens no matter what
     camera_left.stop()
     camera_right.stop()
     cv2.destroyAllWindows()
