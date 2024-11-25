@@ -209,28 +209,30 @@ try:
         rectified_pair = calibration.rectify((imgLeft, imgRight))
     
         # Generate and display the depth map
-        disparity_color, current_disparity = stereo_depth_map(rectified_pair, BASELINE, focal_length_px)
-    
-        # Analyze the disparity map for the closest object
-        closest_distance, mean_distance, std_distance = distance.analyze_disparity_distribution(
-            current_disparity
+                disparity_color, current_disparity = stereo_depth_map(rectified_pair, BASELINE, focal_length_px)
+
+        # Find the closest valid region
+        closest_distance, region_center, region_size = distance.find_closest_valid_region(
+            current_disparity, min_region_size=500  # Adjust min_region_size as needed
         )
-    
+
         # Notify the user if a close object is detected
         if closest_distance < THRESHOLD:
-            message = f"Closest object detected at {closest_distance:.2f} meters."
+            distance_ft = round(closest_distance * 3.281, 2)
+            message = f"Warning: Closest object detected at {closest_distance:.2f} meters ({distance_ft} feet)."
             print(message)
             speak_async(message)
-    
+
         # Display rectified images and disparity map
         cv2.imshow("Left", rectified_pair[0])
         cv2.imshow("Right", rectified_pair[1])
         cv2.imshow("Disparity", disparity_color)
-    
+
         # Check for quit command
         key = cv2.waitKey(1) & 0xFF
         if key == ord("q"):
             break
+
 
 except Exception as e:
     # Log any errors that occur during the loop
