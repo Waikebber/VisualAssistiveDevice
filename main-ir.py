@@ -13,17 +13,16 @@ from image_rec.img_rec import ImgRec
 from distance_calculator.DistanceCalculator import DistanceCalculator
 from stereo_calibration.tuning_helper import load_map_settings_with_sgbm, load_map_settings_with_sbm
 
-USE_SGBM = False
-
+USE_SGBM = True
 CONFIDENCE = 0.6
 THRESHOLD = 2.5   # Threshold in meters (2.5m)
 CONFIG_FILE = "stereo_calibration/cam_config.json"
 SETTINGS_FILE = "stereo_calibration/3dmap_set.txt"
 CALIB_RESULTS = 'stereo_calibration/calib_result'
-
 SAVE_OUTPUT = True
 OUTPUT_DIR = 'output'
 OUTPUT_FILE = 'output.png'
+DISPLAY_RATIO = 0.5  # Scaling factor for display
 
 # Load configuration from config.json
 config_path = CONFIG_FILE
@@ -112,12 +111,12 @@ print('Read calibration data and rectifying stereo pair...')
 calibration = StereoCalibration(input_folder=CALIB_RESULTS)
 
 # Initialize interface windows
-cv2.namedWindow("Image")
-cv2.moveWindow("Image", 50, 100)
-cv2.namedWindow("left")
-cv2.moveWindow("left", 450, 100)
-cv2.namedWindow("right")
-cv2.moveWindow("right", 850, 100)
+cv2.namedWindow("Depth Map")
+cv2.moveWindow("Depth Map", 50, 100)
+cv2.namedWindow("Left Camera")
+cv2.moveWindow("Left Camera", 450, 100)
+cv2.namedWindow("Right Camera")
+cv2.moveWindow("Right Camera", 850, 100)
 
 # Load map settings and initialize the StereoBM (Block Matching) object with updated parameters
 if USE_SGBM:
@@ -150,8 +149,10 @@ def stereo_depth_map(rectified_pair):
     disparity_color = cv2.applyColorMap(disparity_fixtype, cv2.COLORMAP_JET)
 
     # Detect the closest object using the colormap
-    closest_distance, closest_region_center = distance.detect_closest_object_from_colormap(disparity_color)
-
+    closest_distance, closest_region_center = distance.detect_closest_object_from_colormap(disparity, disparity_color)
+    # closest_distance, closest_region_center = distance.detect_closest_distance_disparity(disparity)
+    
+    
     # Notify the user if a close object is detected
     if closest_distance < THRESHOLD and closest_region_center is not None:
         distance_ft = round(closest_distance * 3.281, 2)
@@ -163,10 +164,11 @@ def stereo_depth_map(rectified_pair):
     if closest_region_center is not None:
         cv2.circle(disparity_color, closest_region_center, 10, (255, 255, 255), -1)
 
-    # Show the updated depth map with detected object
-    cv2.imshow("Image", disparity_color)
+    # Resize and display the depth map
+    disparity_display = cv2.resize(disparity_color, (0, 0), fx=DISPLAY_RATIO, fy=DISPLAY_RATIO)
+    cv2.imshow("Depth Map", disparity_display)
 
-    return disparity_color, disparity
+    return disparity_display, disparity
 
 try:
     # Start the main processing loop
@@ -185,9 +187,11 @@ try:
         # Generate and display the depth map
         disparity_color, current_disparity = stereo_depth_map(rectified_pair)
 
-        # Display rectified images and disparity map
-        cv2.imshow("Left", rectified_pair[0])
-        cv2.imshow("Right", rectified_pair[1])
+        # Resize and display rectified images
+        imgLeft_display = cv2.resize(rectified_pair[0], (0, 0), fx=DISPLAY_RATIO, fy=DISPLAY_RATIO)
+        imgRight_display = cv2.resize(rectified_pair[1], (0, 0), fx=DISPLAY_RATIO, fy=DISPLAY_RATIO)
+        cv2.imshow("Left Camera", imgLeft_display)
+        cv2.imshow("Right Camera", imgRight_display)
 
         # Check for quit command
         key = cv2.waitKey(1) & 0xFF
