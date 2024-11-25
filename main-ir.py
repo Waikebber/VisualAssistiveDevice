@@ -154,30 +154,21 @@ def stereo_depth_map(rectified_pair, baseline, focal_length):
     disparity_fixtype = cv2.convertScaleAbs(disparity_grayscale, alpha=(255.0 / 65535.0))
     disparity_color = cv2.applyColorMap(disparity_fixtype, cv2.COLORMAP_JET)
 
-    # Show the depth map
-    cv2.imshow("Image", disparity_color)
-
-    # Calculate the disparity threshold corresponding to the distance threshold
-    disparity_threshold = (focal_length_px * BASELINE) / THRESHOLD
-
-    # Detect the closest object
-    closest_distance, region_center, region_area = distance.detect_closest_object(
-        disparity_map=disparity,
-        disparity_threshold=disparity_threshold,
-        min_region_area=500  # Adjust as needed
-    )
+    # Detect the closest object using the colormap
+    closest_distance, closest_region_center = distance.detect_closest_object_from_colormap(disparity_color)
 
     # Notify the user if a close object is detected
-    if closest_distance < THRESHOLD:
+    if closest_distance < THRESHOLD and closest_region_center is not None:
         distance_ft = round(closest_distance * 3.281, 2)
         message = f"Warning: Closest object detected at {closest_distance:.2f} meters ({distance_ft} feet)."
         print(message)
         speak_async(message)
 
-        # Optionally, draw a circle at the region center on the disparity color map
-        if region_center is not None:
-            cv2.circle(disparity_color, region_center, 10, (0, 255, 255), -1)
-            cv2.imshow("Image", disparity_color)
+        # Draw a white circle at the location of the closest object
+    cv2.circle(disparity_color, closest_region_center, 10, (255, 255, 255), -1)
+
+    # Show the updated depth map with detected object
+    cv2.imshow("Image", disparity_color)
 
     return disparity_color, disparity
 
