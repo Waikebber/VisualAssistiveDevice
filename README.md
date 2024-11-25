@@ -33,25 +33,18 @@ pip install -r requirements.txt
 ```
 project_root/
 ├── main.py                   # Basic stereo vision script
-├── main-ir.py               # Stereo vision with image recognition
-├── helpers/                 # Helper modules
-│   ├── __init__.py
-│   ├── config.py            # Configuration loading
-│   ├── stereo_processing.py # Stereo vision processing
-│   ├── camera_setup.py      # Camera initialization
-│   ├── gui.py              # Display functions
-│   ├── button_handler.py    # GPIO button control
-│   └── audio.py            # Audio handler
+├── main-ir.py                # Stereo vision with image recognition
 ├── image_rec/              # Image recognition package
 │   ├── __init__.py
-│   └── img_rec.py          # YOLO implementation
+│   └── img_rec.py            # YOLO implementation
 ├── speakers/               # Audio feedback package
 │   ├── __init__.py
-│   └── generative_audio.py # Text-to-speech function
+│   └── generative_audio.py   # Text-to-speech function
 └── stereo_calibration/     # Calibration files
-    ├── cam_config.json     # Camera configuration
-    ├── 3dmap_set.txt      # Stereo matching parameters
-    └── calib_result/      # Camera calibration data
+    ├── cam_config.json       # Camera configuration
+    ├── 3dmap_set.txt         # Stereo matching parameters
+    ├── tuning_helper.py      # Helper for loading 3dmap_set.txt
+    └── calib_result/         # Camera calibration data
 ```
 
 ## Configuration
