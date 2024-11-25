@@ -108,8 +108,8 @@ SR = 14         # Speckle range to suppress noise in disparity map
 SPWS = 100      # Speckle window size for disparity filtering
 
 # Initialize the cameras
-camera_left = initialize_camera(0, img_width, img_height)
-camera_right = initialize_camera(1, img_width, img_height)
+camera_left = initialize_camera(1, img_width, img_height)
+camera_right = initialize_camera(0, img_width, img_height)
 
 # Start cameras
 camera_left.start()
@@ -141,6 +141,7 @@ def stereo_depth_map(rectified_pair, baseline, focal_length):
     dmLeft = rectified_pair[0]
     dmRight = rectified_pair[1]
     disparity = sbm.compute(dmLeft, dmRight).astype(np.float32) / 16.0
+    disparity = distance.reduce_noise(disparity)
     local_max = disparity.max()
     local_min = disparity.min()
 
@@ -192,50 +193,36 @@ def load_map_settings(fName):
     print('Parameters loaded from file ' + fName)
 
 load_map_settings(SETTINGS_FILE)
+
 try:
-    # Start the main processing loop
+    # Capture frames from the camera continuously
     while True:
-        # Capture frames
+        global current_disparity, rectified_pair
+        
         current_frame_left = camera_left.capture_array()
         current_frame_right = camera_right.capture_array()
-    
+
         # Convert to grayscale
         imgLeft = cv2.cvtColor(current_frame_left, cv2.COLOR_BGR2GRAY)
         imgRight = cv2.cvtColor(current_frame_right, cv2.COLOR_BGR2GRAY)
-    
-        # Rectify the stereo pair
+        
+        # Rectify the stereo pair using calibration data and store globally
         rectified_pair = calibration.rectify((imgLeft, imgRight))
-    
-        # Generate and display the depth map
+        
+        # Generate and display the depth map, and calculate center distance
         disparity_color, current_disparity = stereo_depth_map(rectified_pair, BASELINE, focal_length_px)
-    
-        # Analyze the disparity map for the closest object
-        closest_distance, mean_distance, std_distance = distance.analyze_disparity_distribution(
-            current_disparity
-        )
-    
-        # Notify the user if a close object is detected
-        if closest_distance < THRESHOLD:
-            message = f"Closest object detected at {closest_distance:.2f} meters."
-            print(message)
-            speak_async(message)
-    
-        # Display rectified images and disparity map
-        cv2.imshow("Left", rectified_pair[0])
-        cv2.imshow("Right", rectified_pair[1])
-        cv2.imshow("Disparity", disparity_color)
-    
-        # Check for quit command
+        
+        # Show the left and right images
+        cv2.imshow("left", imgLeft)
+        cv2.imshow("right", imgRight)
+        
+        # Check for 'q' key to quit
         key = cv2.waitKey(1) & 0xFF
         if key == ord("q"):
             break
 
-except Exception as e:
-    # Log any errors that occur during the loop
-    print(f"Error during processing: {e}")
-
 finally:
-    # Ensure cleanup happens no matter what
+    # Cleanup
     camera_left.stop()
     camera_right.stop()
     cv2.destroyAllWindows()
