@@ -149,13 +149,18 @@ def stereo_depth_map(rectified_pair, baseline, focal_length):
     disparity_grayscale = (disparity - local_min) * (65535.0 / (local_max - local_min))
     disparity_fixtype = cv2.convertScaleAbs(disparity_grayscale, alpha=(255.0 / 65535.0))
     disparity_color = cv2.applyColorMap(disparity_fixtype, cv2.COLORMAP_JET)
-    
+
     # Show the depth map
     cv2.imshow("Image", disparity_color)
-    
-    # Find the closest valid region
-    closest_distance, region_center, region_size = distance.find_closest_valid_region(
-        disparity, min_region_size=500, visualize = True  # Adjust min_region_size as needed
+
+    # Calculate the disparity threshold corresponding to the distance threshold
+    disparity_threshold = (focal_length_px * BASELINE) / THRESHOLD
+
+    # Detect the closest object
+    closest_distance, region_center, region_area = distance.detect_closest_object(
+        disparity_map=disparity,
+        disparity_threshold=disparity_threshold,
+        min_region_area=500  # Adjust as needed
     )
 
     # Notify the user if a close object is detected
@@ -165,7 +170,11 @@ def stereo_depth_map(rectified_pair, baseline, focal_length):
         print(message)
         speak_async(message)
 
-    
+        # Optionally, draw a circle at the region center on the disparity color map
+        if region_center is not None:
+            cv2.circle(disparity_color, region_center, 10, (0, 255, 255), -1)
+            cv2.imshow("Image", disparity_color)
+
     return disparity_color, disparity
 
 def load_map_settings(fName):
