@@ -5,13 +5,14 @@ from stereovision.calibration import StereoCalibration
 from datetime import datetime
 from math import tan, pi
 from camera.cam_config import initialize_camera
-from tuning_helper import load_map_settings_with_sbm
+from tuning_helper import load_map_settings_with_sbm, load_map_settings_with_sgbm
 
-
+USE_SGBM = True
 THRESHOLD = 2.5   # Threshold in meters (2.5m)
 CONFIG_FILE = "./cam_config.json"
 SETTINGS_FILE = "./3dmap_set.txt"
 CALIB_RESULTS = './calib_result'
+DISPLAY_RATIO = 1  # Scaling factor for display
 
 # Load configuration from config.json
 config_path = CONFIG_FILE
@@ -57,26 +58,27 @@ print('Read calibration data and rectifying stereo pair...')
 calibration = StereoCalibration(input_folder=CALIB_RESULTS)
 
 # Initialize interface windows
-cv2.namedWindow("Image")
-cv2.moveWindow("Image", 50, 100)
-cv2.namedWindow("left")
-cv2.moveWindow("left", 450, 100)
-cv2.namedWindow("right")
-cv2.moveWindow("right", 850, 100)
+cv2.namedWindow("Depth Map")
+cv2.moveWindow("Depth Map", 50, 100)
+cv2.namedWindow("Left Camera")
+cv2.moveWindow("Left Camera", 450, 100)
+cv2.namedWindow("Right Camera")
+cv2.moveWindow("Right Camera", 850, 100)
 
 # Initialize the StereoBM (Block Matching) object with updated parameters
-sbm = load_map_settings_with_sbm(SETTINGS_FILE)
+if USE_SGBM:
+    sbm = load_map_settings_with_sgbm(SETTINGS_FILE)
+else:
+    sbm = load_map_settings_with_sbm(SETTINGS_FILE)
 
 # Function to calculate the depth (distance) of the center pixel
 def calculate_distance(disparity, baseline, focal_length):
-    # Get the center pixel coordinates
     normalized_disparity = disparity + 61.0
     center_x = normalized_disparity.shape[1] // 2
     center_y = normalized_disparity.shape[0] // 2
     center_disparity = normalized_disparity[center_y, center_x]
     
     if center_disparity > 0:  # Ensure disparity is positive
-        # Calculate the distance Z
         distance = (focal_length * baseline) / center_disparity
         return distance
     else:
@@ -94,8 +96,9 @@ def stereo_depth_map(rectified_pair, baseline, focal_length):
     disparity_fixtype = cv2.convertScaleAbs(disparity_grayscale, alpha=(255.0 / 65535.0))
     disparity_color = cv2.applyColorMap(disparity_fixtype, cv2.COLORMAP_JET)
     
-    # Show the depth map
-    cv2.imshow("Image", disparity_color)
+    # Resize the disparity map for display
+    disparity_display = cv2.resize(disparity_color, (0, 0), fx=DISPLAY_RATIO, fy=DISPLAY_RATIO)
+    cv2.imshow("Depth Map", disparity_display)
     
     # Calculate and print the distance of the center pixel
     center_distance = calculate_distance(disparity, baseline, focal_length)
@@ -108,7 +111,7 @@ def stereo_depth_map(rectified_pair, baseline, focal_length):
     key = cv2.waitKey(1) & 0xFF
     if key == ord("q"):
         quit()
-    return disparity_color
+    return disparity_display
 
 # Capture frames from the camera continuously
 while True:
@@ -125,6 +128,8 @@ while True:
     # Generate and display the depth map, and calculate center distance
     disparity = stereo_depth_map(rectified_pair, BASELINE, focal_length_px)
     
-    # Show the left and right images
-    cv2.imshow("left", imgLeft)
-    cv2.imshow("right", imgRight)
+    # Resize and display the left and right images
+    imgLeft_display = cv2.resize(imgLeft, (0, 0), fx=DISPLAY_RATIO, fy=DISPLAY_RATIO)
+    imgRight_display = cv2.resize(imgRight, (0, 0), fx=DISPLAY_RATIO, fy=DISPLAY_RATIO)
+    cv2.imshow("Left Camera", imgLeft_display)
+    cv2.imshow("Right Camera", imgRight_display)
