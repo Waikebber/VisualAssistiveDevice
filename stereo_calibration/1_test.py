@@ -20,7 +20,6 @@
 # 
 # Thanks to Adrian and http://pyimagesearch.com, as there are lot of
 # code in this tutorial was taken from his lessons.
-# 
 
 import time
 import cv2
@@ -54,8 +53,8 @@ img_height = int(cam_height * scale_ratio)
 print ("Scaled image resolution: "+str(img_width)+" x "+str(img_height))
 
 # Initialize the camera
-camera_left = initialize_camera(0, img_width, img_height)
-camera_right = initialize_camera(1, img_width, img_height)
+camera_left = initialize_camera(1, img_width, img_height)
+camera_right = initialize_camera(0, img_width, img_height)
 
 # Start cameras
 camera_left.start()
@@ -90,6 +89,7 @@ while True:
         
         # Create scenes directory if it doesn't exist
         os.makedirs("./scenes", exist_ok=True)
+        
         cv2.imwrite(filename, frame)
         print(f"Image saved as: {filename}")
         break
