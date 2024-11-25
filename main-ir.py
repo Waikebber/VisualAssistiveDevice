@@ -141,9 +141,13 @@ def stereo_depth_map(rectified_pair, baseline, focal_length):
     dmLeft = rectified_pair[0]
     dmRight = rectified_pair[1]
     disparity = sbm.compute(dmLeft, dmRight).astype(np.float32) / 16.0
-    disparity = distance.reduce_noise(disparity)
-    local_max = disparity.max()
+    lower_bound = np.percentile(disparity, 5)
+    upper_bound = np.percentile(disparity, 95)
     local_min = disparity.min()
+    local_max = disparity.max()
+    
+    disparity = np.clip(disparity, lower_bound, upper_bound)
+    disparity = distance.reduce_noise(disparity)
 
     # Improved normalization and visualization of the depth map
     disparity_grayscale = (disparity - local_min) * (65535.0 / (local_max - local_min))
