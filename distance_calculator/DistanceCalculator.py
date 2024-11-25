@@ -14,6 +14,27 @@ class DistanceCalculator:
         """
         self.baseline = baseline
         self.focal_length = focal_length
+        
+    def reduce_noise(self, disparity_map, method="median", kernel_size=5):
+        """Reduce noise in the disparity map using filtering.
+        
+        Args:
+            disparity_map (np.array): Input disparity map
+            method (str): Noise reduction method ('median', 'gaussian', or 'bilateral')
+            kernel_size (int): Kernel size for the filter
+            
+        Returns:
+            np.array: Denoised disparity map
+        """
+        if method == "median":
+            return cv2.medianBlur(disparity_map, kernel_size)
+        elif method == "gaussian":
+            return cv2.GaussianBlur(disparity_map, (kernel_size, kernel_size), 0)
+        elif method == "bilateral":
+            return cv2.bilateralFilter(disparity_map, kernel_size, 75, 75)
+        else:
+            raise ValueError("Invalid method. Choose 'median', 'gaussian', or 'bilateral'.")
+
 
     def calculate_object_center_distances(self, disparity_map, detected_objects):
         """Calculate center distances of bounding boxes from detected objects.
@@ -39,7 +60,7 @@ class DistanceCalculator:
             center_y = min(max(center_y, 0), height - 1)
             
             # Calculate distance for object center point
-            normalized_disparity = disparity_map[center_y, center_x] + 61.0
+            normalized_disparity = disparity_map[center_y, center_x] + 60.0
             if normalized_disparity > 0:
                 distance = (self.focal_length * self.baseline) / normalized_disparity
                 object_distances.append((obj_name, distance, confidence, (center_x, center_y)))
@@ -71,7 +92,7 @@ class DistanceCalculator:
             
             # Get disparity values within the bounding box
             box_disparity = disparity_map[y1:y2, x1:x2]
-            normalized_disparity = box_disparity + 61.0
+            normalized_disparity = box_disparity + 60.0
             
             # Find the minimum valid distance in the box
             valid_disparities = normalized_disparity[normalized_disparity > 0]
@@ -87,27 +108,34 @@ class DistanceCalculator:
         
         return object_distances
     
-    def calculate_center_distance(self, disparity):
+    def calculate_center_distance(self, disparity_map):
         """Calculate distance for the center pixel.
         
         Args:
-            disparity (np.array): Disparity map from stereo vision
+            disparity_map (np.array): Disparity map from stereo vision
             
         Returns:
             float: Distance to center pixel in meters, or inf if invalid
         """
+        if disparity_map is None or disparity_map.size == 0:
+            raise ValueError("Invalid or empty disparity map provided.")
+
         # Get the center pixel coordinates
-        normalized_disparity = disparity + 61.0
-        center_x = normalized_disparity.shape[1] // 2
-        center_y = normalized_disparity.shape[0] // 2
-        center_disparity = normalized_disparity[center_y, center_x]
-        
-        if center_disparity > 0:  # Ensure disparity is positive
-            # Calculate the distance Z
-            distance = (self.focal_length * self.baseline) / center_disparity
+        center_x = disparity_map.shape[1] // 2
+        center_y = disparity_map.shape[0] // 2
+
+        # Fetch the disparity value for the center pixel
+        center_disparity = disparity_map[center_y, center_x]
+
+        # Apply normalization to handle negative values or offsets
+        normalized_disparity = center_disparity + 60.0
+
+        if normalized_disparity > 0:  # Ensure disparity is positive
+            # Calculate the distance using focal length, baseline, and disparity
+            distance = (self.focal_length * self.baseline) / normalized_disparity
             return distance
         else:
-            return float('inf')  # Infinite distance if disparity is zero or negative
+            return float('inf')  # Infinite distance if disparity is zero or invalid
     
     def calculate_distance(self, disparity_map):
         """Calculate the closest distance in the map.
@@ -119,7 +147,7 @@ class DistanceCalculator:
             tuple: (min_distance, (min_x, min_y)) containing the minimum distance
                   and its coordinates, or (inf, None) if no valid distances
         """
-        normalized_disparity = disparity_map + 61.0
+        normalized_disparity = disparity_map + 60.0
         valid_disparities = normalized_disparity[normalized_disparity > 0]
         
         if len(valid_disparities) > 0:
@@ -130,7 +158,7 @@ class DistanceCalculator:
             min_idx = np.where(normalized_disparity == min_disparity)
             min_y, min_x = min_idx[0][0], min_idx[1][0]
             
-            return min_distance, (min_x, min_y)
+            return min_distance, (min_x, min_y) + 1
         else:
             return float('inf'), None
     
