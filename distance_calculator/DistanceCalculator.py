@@ -144,14 +144,16 @@ class DistanceCalculator:
         else:
             return float("inf")  # Infinite distance if disparity is zero or invalid
     
-    def detect_closest_object_from_colormap(self, disparity_color, min_region_area=500):
+    def detect_closest_object_from_colormap(self, disparity, disparity_color, min_region_area=4000):
         """
-        Detect the closest object by isolating red shades from the disparity colormap.
-    
+        Detect the closest object by isolating red shades from the disparity colormap and calculating the distance
+        using the disparity map.
+        
         Args:
-            disparity_color (np.array): Colormap of the disparity map (BGR format)
-            min_region_area (int): Minimum area of a region to be considered a valid object
-    
+            disparity (np.array): Grayscale disparity map with raw disparity values.
+            disparity_color (np.array): Colormap of the disparity map (BGR format) used for visualization.
+            min_region_area (int): Minimum area of a region to be considered a valid object.
+        
         Returns:
             tuple: (closest_distance, (cX, cY)) where closest_distance is the distance to the closest object,
                    and (cX, cY) are the coordinates of the centroid of the closest object. If no valid object is found,
@@ -165,7 +167,7 @@ class DistanceCalculator:
         upper_red_1 = np.array([10, 255, 255])
         lower_red_2 = np.array([170, 120, 70])
         upper_red_2 = np.array([180, 255, 255])
-    
+
         # Create two masks to capture both red ranges
         mask1 = cv2.inRange(hsv_image, lower_red_1, upper_red_1)
         mask2 = cv2.inRange(hsv_image, lower_red_2, upper_red_2)
@@ -176,18 +178,18 @@ class DistanceCalculator:
         # Optional: Apply morphological operations to reduce noise in the mask
         kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
         red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN, kernel)
-    
+
         # Find contours of the detected closest regions
         contours, _ = cv2.findContours(red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
+
         closest_distance = float('inf')
         closest_region_center = None
-    
+
         for contour in contours:
             area = cv2.contourArea(contour)
-            if area < min_region_area:
+            if area < min_region_area :
                 continue  # Ignore small regions
-    
+
             # Calculate the centroid of the contour to represent the object's position
             M = cv2.moments(contour)
             if M["m00"] != 0:
@@ -195,30 +197,102 @@ class DistanceCalculator:
                 cY = int(M["m01"] / M["m00"])
                 
                 # Use a 5x5 region around the centroid to calculate the average disparity
-                window_size = 5
+                window_size = 10
                 half_window = window_size // 2
-    
+
                 # Ensure the coordinates are within bounds
                 start_x = max(0, cX - half_window)
-                end_x = min(disparity_color.shape[1], cX + half_window + 1)
+                end_x = min(disparity.shape[1], cX + half_window + 1)
                 start_y = max(0, cY - half_window)
-                end_y = min(disparity_color.shape[0], cY + half_window + 1)
-    
-                # Extract the disparity values from the red channel in the given window
-                disparity_window = disparity_color[start_y:end_y, start_x:end_x, 2]  # Use the red channel
-    
+                end_y = min(disparity.shape[0], cY + half_window + 1)
+
+                # Extract the disparity values from the disparity map in the given window
+                disparity_window = disparity[start_y:end_y, start_x:end_x]
+                
                 # Calculate the average disparity value
-                avg_disparity = np.mean(disparity_window[disparity_window > 0])
-                print(avg_disparity)
-    
-                if avg_disparity > 0:  # Ensure average disparity is valid
-                    distance = (self.focal_length * self.baseline) / avg_disparity
+                valid_disparities = disparity_window[disparity_window > 0]  # Ignore zero or invalid disparity values
+                if valid_disparities.size > 0:
+                    avg_disparity = np.mean(valid_disparities)
+                    min_disparity = np.min(valid_disparities)
+
+                    # Calculate distance from disparity
+                    distance = (self.focal_length * self.baseline) / min_disparity
+                    print(f"Distance: {distance}m, BASELINE: {self.baseline}m, FOCAL: {self.focal_length}px, MIN_DISP: {min_disparity}")
                     if distance < closest_distance:
                         closest_distance = distance
                         closest_region_center = (cX, cY)
-    
+
         return closest_distance, closest_region_center
-        
+
+    def detect_closest_distance_disparity(self, disparity, min_region_area=4000):
+        """
+        Detect the closest object directly using the disparity map, based on regions with minimum disparity values.
+
+        Args:
+            disparity (np.array): Grayscale disparity map with raw disparity values.
+            min_region_area (int): Minimum area of a region to be considered a valid object.
+
+        Returns:
+            tuple: (closest_distance, (cX, cY)) where closest_distance is the distance to the closest object,
+                   and (cX, cY) are the coordinates of the centroid of the closest object. If no valid object is found,
+                   returns (float('inf'), None).
+        """
+        # Threshold the disparity map to exclude invalid values (e.g., zero disparities)
+        valid_disparity_mask = disparity > 0
+
+        # Apply a binary threshold to create a mask of valid regions
+        _, binary_mask = cv2.threshold(disparity, 1, 255, cv2.THRESH_BINARY)
+        binary_mask = binary_mask.astype(np.uint8)
+
+        # Optional: Apply morphological operations to reduce noise
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        binary_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_OPEN, kernel)
+
+        # Find contours of the detected regions
+        contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        closest_distance = float('inf')
+        closest_region_center = None
+
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if area < min_region_area :
+                continue  # Ignore small regions
+
+            # Calculate the centroid of the contour to represent the object's position
+            M = cv2.moments(contour)
+            if M["m00"] != 0:
+                cX = int(M["m10"] / M["m00"])
+                cY = int(M["m01"] / M["m00"])
+                
+                # Use a 5x5 region around the centroid to calculate the minimum disparity
+                window_size = 10
+                half_window = window_size // 2
+
+                # Ensure the coordinates are within bounds
+                start_x = max(0, cX - half_window)
+                end_x = min(disparity.shape[1], cX + half_window + 1)
+                start_y = max(0, cY - half_window)
+                end_y = min(disparity.shape[0], cY + half_window + 1)
+
+                # Extract the disparity values from the disparity map in the given window
+                disparity_window = disparity[start_y:end_y, start_x:end_x]
+
+                # Calculate the minimum valid disparity in the region
+                valid_disparities = disparity_window[disparity_window > 0]
+                if valid_disparities.size > 0:
+                    min_disparity = np.min(valid_disparities)
+
+                    # Calculate distance from disparity
+                    distance = 1.5+ (self.focal_length * self.baseline) / min_disparity
+                    print(f"Distance: {distance}m, BASELINE: {self.baseline}m, FOCAL: {self.focal_length}px, MIN_DISP: {min_disparity}")
+                    if distance < closest_distance:
+                        closest_distance = distance 
+                        closest_region_center = (cX, cY)
+
+        return closest_distance, closest_region_center
+
+
         
     def create_detection_image(self, disparity_map, detected_objects):
         """Create visualization of disparity map with detected objects.
