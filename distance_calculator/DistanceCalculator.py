@@ -1,5 +1,6 @@
 import numpy as np
 import cv2
+from scipy.stats import norm
 
 """File to calculate distances from disparity map.
 """
