@@ -1,6 +1,9 @@
 import json
 import cv2
 
+import json
+import cv2
+
 def load_map_settings_with_sgbm(file_path):
     """
     Load settings from a file and initialize the StereoSGBM object.
@@ -17,11 +20,9 @@ def load_map_settings_with_sgbm(file_path):
 
         # Extract stereo matching settings from JSON
         SWS = data['SADWindowSize']
-        PFS = data['preFilterSize']
         PFC = data['preFilterCap']
         MDS = data['minDisparity']
         NOD = data['numberOfDisparities']
-        TTH = data['textureThreshold']
         UR = data['uniquenessRatio']
         SR = data['speckleRange']
         SPWS = data['speckleWindowSize']
@@ -36,12 +37,9 @@ def load_map_settings_with_sgbm(file_path):
             disp12MaxDiff=1,
             uniquenessRatio=UR,
             speckleWindowSize=SPWS,
-            speckleRange=SR
+            speckleRange=SR,
+            preFilterCap=PFC  # Include directly during creation
         )
-        
-        sgbm.setPreFilterCap(PFC)
-        sgbm.setPreFilterSize(PFS)
-        sgbm.setTextureThreshold(TTH)
 
         print(f"Parameters loaded from file {file_path}")
 
@@ -59,6 +57,7 @@ def load_map_settings_with_sgbm(file_path):
     except Exception as e:
         print(f"Unexpected error occurred: {e}")
         raise
+
 
 def load_map_settings_with_sbm(file_path):
     """
