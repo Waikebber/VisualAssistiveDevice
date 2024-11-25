@@ -45,10 +45,14 @@ photo_width = img_width * 2
 photo_height = img_height
 image_size = (img_width, img_height)
 
+# Scaling factor for display window
+display_scale = 0.5  # Adjust this value to fit the window on your screen
+
 # Chessboard parameters
 rows = int(config['chess_rows'])             # Number of rows in the chessboard
 columns = int(config['chess_columns'])       # Number of columns in the chessboard
-square_size = int(config['chess_square_cm']) # Size of the chessboard square in cm
+square_size = float(config['chess_square_cm']) # Size of the chessboard square in cm
+print(f"Chessboard Square Size: {square_size}cm")
 
 # Initialize the StereoCalibrator with the new resolution and chessboard size
 calibrator = StereoCalibrator(rows, columns, square_size, image_size)
@@ -88,14 +92,24 @@ calibration = calibrator.calibrate_cameras()
 calibration.export('calib_result')
 print('Calibration complete!')
 
+average_error = calibrator.check_calibration(calibration)
+print(average_error)
+
 # Rectify and show the last pair after calibration
 calibration = StereoCalibration(input_folder='calib_result')
 rectified_pair = calibration.rectify((imgLeft, imgRight))
 
+# Resize the rectified images for display
+rectified_left_display = cv2.resize(rectified_pair[0], (0, 0), fx=display_scale, fy=display_scale)
+rectified_right_display = cv2.resize(rectified_pair[1], (0, 0), fx=display_scale, fy=display_scale)
+
 # Display the rectified images
-cv2.imshow('Left CALIBRATED', rectified_pair[0])
-cv2.imshow('Right CALIBRATED', rectified_pair[1])
+cv2.imshow('Left CALIBRATED', rectified_left_display)
+cv2.imshow('Right CALIBRATED', rectified_right_display)
+
 # Save the rectified images
 cv2.imwrite("rectified_left.jpg", rectified_pair[0])
 cv2.imwrite("rectified_right.jpg", rectified_pair[1])
+
 cv2.waitKey(0)
+cv2.destroyAllWindows()
