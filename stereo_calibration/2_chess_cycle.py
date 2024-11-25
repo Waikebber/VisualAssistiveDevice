@@ -62,8 +62,8 @@ img_height = int(cam_height * scale_ratio)
 print("Scaled image resolution: " + str(img_width) + " x " + str(img_height))
 
 # Initialize the cameras
-camera_left = initialize_camera(0, img_width, img_height)
-camera_right = initialize_camera(1, img_width, img_height)
+camera_left = initialize_camera(1, img_width, img_height)
+camera_right = initialize_camera(0, img_width, img_height)
 
 # Start cameras
 camera_left.start()
