@@ -72,8 +72,8 @@ focal_length_px = (img_width * 0.5) / tan(H_FOV * 0.5 * pi / 180) # Focal length
 print("Focal length: " + str(focal_length_px) + " px")
 
 # Initialize the cameras
-camera_left = initialize_camera( 0, img_width, img_height)
-camera_right = initialize_camera( 1, img_width, img_height)
+camera_left = initialize_camera(1, img_width, img_height)
+camera_right = initialize_camera(0, img_width, img_height)
 
 # Start cameras
 camera_left.start()
