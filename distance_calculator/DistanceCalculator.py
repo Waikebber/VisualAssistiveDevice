@@ -193,6 +193,68 @@ class DistanceCalculator:
         
         return closest_distance, mean_distance, std_distance
     
+    def find_closest_valid_region(self, disparity_map, min_region_size=500):
+        """Find the closest valid region in the disparity map.
+
+        Args:
+            disparity_map (np.array): Disparity map from stereo vision
+            min_region_size (int): Minimum size of the region to be considered valid
+
+        Returns:
+            tuple: (closest_distance, (x, y), region_size) or (inf, None, 0)
+        """
+        # Normalize the disparity map and convert to 8-bit
+        normalized_disparity = cv2.normalize(disparity_map, None, alpha=0, beta=255, 
+                                             norm_type=cv2.NORM_MINMAX).astype(np.uint8)
+
+        # Threshold the disparity map to get regions with valid disparities
+        _, thresh = cv2.threshold(normalized_disparity, 0, 255, cv2.THRESH_BINARY)
+
+        # Apply morphological operations to remove small noise
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        opened = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+
+        # Find connected components
+        num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(opened)
+
+        closest_distance = float('inf')
+        closest_region_center = None
+        largest_region_size = 0
+
+        for label in range(1, num_labels):  # Skip background label 0
+            region_size = stats[label, cv2.CC_STAT_AREA]
+            if region_size < min_region_size:
+                continue  # Ignore small regions
+
+            # Get the average disparity of the region
+            mask = (labels == label)
+            region_disparities = disparity_map[mask]
+
+            # Calculate the mean disparity and corresponding distance
+            mean_disparity = np.mean(region_disparities)
+            if mean_disparity <= 0:
+                continue
+
+            distance = (self.focal_length * self.baseline) / (mean_disparity + 1e-6)
+
+            if distance < closest_distance:
+                closest_distance = distance
+                closest_region_center = centroids[label]
+                largest_region_size = region_size
+        if visualize:
+            # Create a color map to display regions
+            region_display = cv2.cvtColor(normalized_disparity, cv2.COLOR_GRAY2BGR)
+    
+            for label in range(1, num_labels):
+                if stats[label, cv2.CC_STAT_AREA] >= min_region_size:
+                    mask = (labels == label)
+                    region_display[mask] = [0, 255, 0]  # Color valid regions green
+    
+            cv2.imshow("Regions", region_display)
+
+        return closest_distance, closest_region_center, largest_region_size
+    
+    
     def create_detection_image(self, disparity_map, detected_objects):
         """Create visualization of disparity map with detected objects.
         
