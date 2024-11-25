@@ -197,7 +197,67 @@ class DistanceCalculator:
                 largest_region_area = area
 
         return closest_distance, closest_region_center, largest_region_area
+
+    def detect_closest_object_from_colormap(self, disparity_color, min_region_area=500):
+        """
+        Detect the closest object by isolating red shades from the disparity colormap.
+
+        Args:
+            disparity_color (np.array): Colormap of the disparity map (BGR format)
+            min_region_area (int): Minimum area of a region to be considered a valid object
+
+        Returns:
+            tuple: (closest_distance, (cX, cY)) where closest_distance is the distance to the closest object,
+                   and (cX, cY) are the coordinates of the centroid of the closest object. If no valid object is found,
+                   returns (float('inf'), None).
+        """
+        # Convert the disparity color image to HSV
+        hsv_image = cv2.cvtColor(disparity_color, cv2.COLOR_BGR2HSV)
         
+        # Define the HSV range for detecting red color (typically red appears in two ranges)
+        lower_red_1 = np.array([0, 120, 70])
+        upper_red_1 = np.array([10, 255, 255])
+        lower_red_2 = np.array([170, 120, 70])
+        upper_red_2 = np.array([180, 255, 255])
+
+        # Create two masks to capture both red ranges
+        mask1 = cv2.inRange(hsv_image, lower_red_1, upper_red_1)
+        mask2 = cv2.inRange(hsv_image, lower_red_2, upper_red_2)
+        
+        # Combine the masks
+        red_mask = cv2.bitwise_or(mask1, mask2)
+        
+        # Optional: Apply morphological operations to reduce noise in the mask
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        red_mask = cv2.morphologyEx(red_mask, cv2.MORPH_OPEN, kernel)
+
+        # Find contours of the detected closest regions
+        contours, _ = cv2.findContours(red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        closest_distance = float('inf')
+        closest_region_center = None
+
+        for contour in contours:
+            area = cv2.contourArea(contour)
+            if area < min_region_area:
+                continue  # Ignore small regions
+
+            # Calculate the centroid of the contour to represent the object's position
+            M = cv2.moments(contour)
+            if M["m00"] != 0:
+                cX = int(M["m10"] / M["m00"])
+                cY = int(M["m01"] / M["m00"])
+                
+                # Calculate the disparity value at the centroid
+                disparity_value = disparity_color[cY, cX, 2]  # Use the red channel as an approximation
+                if disparity_value > 0:
+                    distance = (self.focal_length * self.baseline) / disparity_value
+                    if distance < closest_distance:
+                        closest_distance = distance
+                        closest_region_center = (cX, cY)
+
+        return closest_distance, closest_region_center
+
     def create_detection_image(self, disparity_map, detected_objects):
         """Create visualization of disparity map with detected objects.
 
