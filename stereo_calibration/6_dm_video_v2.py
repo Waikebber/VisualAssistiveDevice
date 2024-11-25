@@ -6,7 +6,7 @@ from stereovision.calibration import StereoCalibration
 from datetime import datetime
 from math import tan, pi
 from camera.cam_config import initialize_camera
-from tuning_helper import load_map_settings_with_sgbm
+from tuning_helper import load_map_settings_with_sgbm, load_map_settings_with_sbm
 
 # Configuration constants
 THRESHOLD = 2.5  # Threshold in meters (2.5m)
@@ -64,8 +64,12 @@ cv2.moveWindow("left", 450, 100)
 cv2.namedWindow("right")
 cv2.moveWindow("right", 850, 100)
 
-# Load the StereoBM settings from file
-sbm = load_map_settings_with_sgbm(SETTINGS_FILE)
+# Load the StereoBM or StereoSGBM settings from file
+use_sgbm = True  # Change to False if StereoBM is preferred
+if use_sgbm:
+    sbm = load_map_settings_with_sgbm(SETTINGS_FILE)
+else:
+    sbm = load_map_settings_with_sbm(SETTINGS_FILE)
 
 # Function to calculate the depth (distance) of the center pixel using average of a small region
 def calculate_distance(disparity, baseline, focal_length):
