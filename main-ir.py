@@ -113,6 +113,8 @@ calibration = StereoCalibration(input_folder=CALIB_RESULTS)
 # Initialize interface windows
 cv2.namedWindow("Depth Map")
 cv2.moveWindow("Depth Map", 50, 100)
+cv2.namedWindow("Disparity Map")
+cv2.moveWindow("Disparity Map", 200, 100)
 cv2.namedWindow("Left Camera")
 cv2.moveWindow("Left Camera", 450, 100)
 cv2.namedWindow("Right Camera")
@@ -134,41 +136,44 @@ def speak_async(text):
 def stereo_depth_map(rectified_pair):
     dmLeft = rectified_pair[0]
     dmRight = rectified_pair[1]
+
+    # Compute the disparity map
     disparity = sbm.compute(dmLeft, dmRight).astype(np.float32) / 16.0
     lower_bound = np.percentile(disparity, 5)
     upper_bound = np.percentile(disparity, 95)
     local_min = disparity.min()
     local_max = disparity.max()
-    
+
+    # Clip and reduce noise in disparity map
     disparity = np.clip(disparity, lower_bound, upper_bound)
     disparity = distance.reduce_noise(disparity)
 
-    # Improved normalization and visualization of the depth map
+    # Improved normalization and visualization of the disparity map
     disparity_grayscale = (disparity - local_min) * (65535.0 / (local_max - local_min))
     disparity_fixtype = cv2.convertScaleAbs(disparity_grayscale, alpha=(255.0 / 65535.0))
     disparity_color = cv2.applyColorMap(disparity_fixtype, cv2.COLORMAP_JET)
 
-    # Detect the closest object using the colormap
-    closest_distance, closest_region_center = distance.detect_closest_object_from_colormap(disparity, disparity_color)
-    # closest_distance, closest_region_center = distance.detect_closest_distance_disparity(disparity)
-    
-    
-    # Notify the user if a close object is detected
-    if closest_distance < THRESHOLD and closest_region_center is not None:
-        distance_ft = round(closest_distance * 3.281, 2)
-        message = f"Warning: Closest object detected at {closest_distance:.2f} meters ({distance_ft} feet)."
-        print(message)
-        speak_async(message)
+    # Calculate distance to the center pixel
+    center_pixel_distance = distance.solve_center_pixel_distance(disparity)
 
-    # Draw a white circle at the location of the closest object
-    if closest_region_center is not None:
-        cv2.circle(disparity_color, closest_region_center, 10, (255, 255, 255), -1)
+    # Annotate the center pixel distance on the disparity map
+    h, w = disparity.shape
+    center_y, center_x = h // 2, w // 2
+    cv2.putText(
+        disparity_color,
+        f"Center: {center_pixel_distance:.2f} units",
+        (10, 30),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        1.0,
+        (0, 255, 0),
+        2,
+    )
+    cv2.circle(disparity_color, (center_x, center_y), 5, (0, 0, 255), -1)
 
-    # Resize and display the depth map
-    disparity_display = cv2.resize(disparity_color, (0, 0), fx=DISPLAY_RATIO, fy=DISPLAY_RATIO)
-    cv2.imshow("Depth Map", disparity_display)
+    # Display the colored disparity map
+    cv2.imshow("Disparity Map (Color)", disparity_color)
 
-    return disparity_display, disparity
+    return disparity_color, disparity
 
 try:
     # Start the main processing loop
