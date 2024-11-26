@@ -143,6 +143,42 @@ class DistanceCalculator:
             return distance
         else:
             return float("inf")  # Infinite distance if disparity is zero or invalid
+            
+    def solve_center_pixel_distance(self, disparity):
+        """
+        Use cv2.solve() to calculate the distance of the center pixel.
+
+        Args:
+            disparity (np.array): Disparity map with raw disparity values.
+            focal_length (float): Focal length of the camera (in pixels).
+            baseline (float): Baseline distance between the stereo cameras (in meters or cm).
+
+        Returns:
+            float: Distance of the center pixel (in the same unit as the baseline).
+        """
+        h, w = disparity.shape
+        center_y, center_x = h // 2, w // 2  # Center pixel coordinates
+
+        # Get the disparity value at the center pixel
+        center_disparity = disparity[center_y, center_x]
+
+        if center_disparity <= 0:
+            return float('inf')  # Return infinity for invalid or zero disparity
+
+        A = np.array([
+            [self.focal_length, -center_x], 
+            [self.focal_length, -(center_x - self.baseline * center_disparity / self.focal_length)]
+        ], dtype=np.float64)
+
+        b = np.array([0, 0], dtype=np.float64)
+
+        # Solve the system of equations
+        ret, sol = cv2.solve(A, b, flags=cv2.DECOMP_QR)
+
+        # Extract Z (depth) from the solution
+        _, Z = sol.flatten()
+        return Z
+
     
     def detect_closest_object_from_colormap(self, disparity, disparity_color, min_region_area=4000):
         """
@@ -291,9 +327,64 @@ class DistanceCalculator:
                         closest_region_center = (cX, cY)
 
         return closest_distance, closest_region_center
-
-
         
+    def calculate_obstacle(self, depth_map, depth_thresh=100.0):
+        """
+        Detect obstacles based on the depth map and a safe distance threshold.
+
+        Args:
+            depth_map (np.array): The depth map with each pixel representing distance (in cm).
+            depth_thresh (float): Threshold for the safe distance (in cm).
+
+        Returns:
+            dict: A dictionary containing:
+                  - "warning": bool indicating if an obstacle is detected within the threshold.
+                  - "bounding_box": Tuple (x, y, w, h) of the largest detected obstacle (or None).
+                  - "avg_depth": Average depth of the obstacle (or None).
+                  - "mask": The binary mask used for obstacle detection.
+        """
+        # Preprocess depth map to reduce noise
+        depth_map = cv2.medianBlur(depth_map.astype(np.uint8), 5)
+
+        # Create a binary mask for regions closer than the threshold
+        mask = cv2.inRange(depth_map, 10, depth_thresh)
+
+        # Morphological operations to clean up noise
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+
+        # Check if any significant obstacle is detected
+        if np.sum(mask) / 255.0 > 0.01 * mask.shape[0] * mask.shape[1]:
+            # Find contours in the mask
+            contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+            cnts = sorted(contours, key=cv2.contourArea, reverse=True)
+
+            # Check the largest contour area
+            max_area_threshold = 0.5 * mask.shape[0] * mask.shape[1]
+            if cnts and cv2.contourArea(cnts[0]) > 0.01 * mask.shape[0] * mask.shape[1]:
+                if cv2.contourArea(cnts[0]) > max_area_threshold:
+                    return {"warning": False, "bounding_box": None, "avg_depth": None, "mask": mask}
+
+                # Get bounding box of the largest contour
+                x, y, w, h = cv2.boundingRect(cnts[0])
+
+                # Create a mask for the largest contour
+                mask2 = np.zeros_like(mask)
+                cv2.drawContours(mask2, cnts, 0, (255), -1)
+
+                # Calculate the average depth within the bounding box
+                depth_mean, _ = cv2.meanStdDev(depth_map, mask=mask2)
+
+                return {
+                    "warning": True,
+                    "bounding_box": (x, y, w, h),
+                    "avg_depth": depth_mean[0][0],
+                    "mask": mask,
+                }
+
+        # No significant obstacle detected
+        return {"warning": False, "bounding_box": None, "avg_depth": None, "mask": mask}
+            
     def create_detection_image(self, disparity_map, detected_objects):
         """Create visualization of disparity map with detected objects.
 
@@ -345,3 +436,4 @@ class DistanceCalculator:
             )
 
         return disparity_color
+        
