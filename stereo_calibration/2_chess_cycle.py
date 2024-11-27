@@ -21,7 +21,11 @@
 # Thanks to Adrian and http://pyimagesearch.com, as there are lot of
 # code in this tutorial was taken from his lessons.
 # 
-
+"""
+This file is used to take a series of photos with a countdown timer.
+It captures frames from the stereo camera and saves them to the scenes directory.
+Take pictures of a chessboard pattern to calibrate the stereo camera.
+"""
 import os
 import time
 import json
@@ -29,6 +33,8 @@ from datetime import datetime
 import cv2
 import numpy as np
 from camera.cam_config import initialize_camera
+
+SAVE_PATH = "../data/dataset1/RAW/"
 
 # Load Camera settings
 config_path = "cam_config.json"
@@ -38,8 +44,8 @@ with open(config_path, 'r') as config_file:
     config = json.load(config_file)
     
 # Create scenes directory if it doesn't exist
-if not os.path.isdir("./scenes"):
-    os.makedirs("./scenes")
+if not os.path.isdir(SAVE_PATH):
+    os.makedirs(SAVE_PATH)
 
 # Photo session settings
 total_photos = int(config['total_photos'])

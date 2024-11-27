@@ -1,26 +1,7 @@
-# Copyright (C) 2019 Eugene Pomazov, <stereopi.com>, virt2real team
-#
-# This file is part of StereoPi tutorial scripts.
-#
-# StereoPi tutorial is free software: you can redistribute it 
-# and/or modify it under the terms of the GNU General Public License
-# as published by the Free Software Foundation, either version 3 of the 
-# License, or (at your option) any later version.
-#
-# StereoPi tutorial is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with StereoPi tutorial.  
-# If not, see <http://www.gnu.org/licenses/>.
-#
-# Most of this code is updated version of 3dberry.org project by virt2real
-# 
-# Thanks to Adrian and http://pyimagesearch.com, as there are lot of
-# code in this tutorial was taken from his lessons.
-
+"""
+This file is used to test the stereo camera setup.
+It captures frames from the stereo camera and displays them in a single window.
+"""
 import time
 import cv2
 import numpy as np
@@ -29,7 +10,6 @@ from datetime import datetime
 from camera.cam_config import initialize_camera
 
 # File for captured image
-filename = './photo.png'
 config_path = "cam_config.json"
 
 if not os.path.isfile(config_path):
@@ -81,17 +61,11 @@ while True:
     key = cv2.waitKey(1) & 0xFF
     t2 = datetime.now()
     
-    # if the `q` key was pressed, break from the loop and save last image
+    # if the `q` key was pressed, break from the loop
     if key == ord("q"):
         avgtime = avgtime/counter
         print ("Average time between frames: " + str(avgtime))
         print ("Average FPS: " + str(1/avgtime))
-        
-        # Create scenes directory if it doesn't exist
-        os.makedirs("./scenes", exist_ok=True)
-        
-        cv2.imwrite(filename, frame)
-        print(f"Image saved as: {filename}")
         break
 
 # Cleanup
