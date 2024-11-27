@@ -1,7 +1,7 @@
 import os
 
 # Define the directories
-base_dir = "../data/stereo_images/dataset1/"
+base_dir = "../data/stereo_images/scenes/"
 subdirs = ["left", "right", "raw"]
 
 # Get a list of all the image numbers that are present in each subdirectory

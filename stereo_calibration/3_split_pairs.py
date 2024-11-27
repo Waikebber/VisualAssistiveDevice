@@ -13,7 +13,7 @@ import cv2
 import shutil
 
 INPUT_FOLDER = "../data/dataset1/RAW/"
-OUTPUT_FOLDER =  "../data/stereo_images/dataset1/"
+OUTPUT_FOLDER =  "../data/stereo_images/scenes/"
 
 def split_and_save_images(input_folder, output_folder):
     """
