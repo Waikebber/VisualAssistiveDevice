@@ -58,4 +58,4 @@ Once the stereo camera is calibrated, you can use it for depth estimation. A goo
 
 ### LICENSE
 
-This code is derived from the stereo-camera-calibration repository by ChristianOrr and follows the original license.d backspace to delete the image pair. Make sure that there are 30-50 image that are valid.
+This code is derived from the [stereo-camera-calibration repository](https://github.com/ChristianOrr/stereo-camera-calibration) by ChristianOrr and follows the original license.d backspace to delete the image pair. Make sure that there are 30-50 image that are valid.
