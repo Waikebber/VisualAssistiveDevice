@@ -6,7 +6,7 @@ from stereo_calibration.camera.cam_config import initialize_camera
 import multiprocessing
 import RPi.GPIO as GPIO
 from image_rec.img_rec import ImgRec
-from stereo_calibration.rectify import get_closest_distance, rectify_imgs
+from stereo_calibration.rectify import get_closest_distance, make_colored_distance_map, rectify_imgs
 from stereo_calibration.disparity import make_disparity_map
 from image_rec.stereoImgRec import create_detection_image, calculate_object_distances
 
@@ -57,6 +57,7 @@ def button_press_action():
     global current_distances, rectified_pair
     distances_on_button_press = current_distances
     current_pair = rectified_pair
+    left_rectified = current_pair[0]
     
     if current_pair is None or distances_on_button_press is None:
         print("No frames available yet")
@@ -64,26 +65,28 @@ def button_press_action():
         
     print("Button pressed - performing object detection and distance measurement")
     
-    # Convert rectified grayscale to BGR for object detection
-    rectified_color = cv2.cvtColor(current_pair[0], cv2.COLOR_GRAY2BGR)
-    
-    detected_objects = img_recognizer.predict_frame(rectified_color)
+    detected_objects = img_recognizer.predict_frame(left_rectified)
     print('OBJECTS')
     print(detected_objects)
-    
+
     if SAVE_OUTPUT:
-        output = create_detection_image(distances_on_button_press, detected_objects)
+        output = create_detection_image(distances_on_button_press, detected_objects, BORDER)
         os.makedirs(OUTPUT_DIR, exist_ok=True)
         cv2.imwrite(os.path.join(OUTPUT_DIR, OUTPUT_FILE), output)
     
     # Calculate distances for detected objects using current distance map
-    object_distances = calculate_object_distances(distances_on_button_press, detected_objects)
+    object_distances = calculate_object_distances(distances_on_button_press, detected_objects, border=0, percentile=20, confidence_threshold=CONFIDENCE)
     
     # Process and announce detected objects within threshold
-    for obj_name, distance_val, confidence, coords in object_distances:
-        if distance_val < THRESHOLD and CONFIDENCE <= confidence:
-            print(f"Detected {obj_name} at {distance_val:.2f}m")
-            speak_async(f"Detected {obj_name} at {distance_val:.2f} meters")
+    for obj_name, distance_val in object_distances:
+        if distance_val < THRESHOLD:
+            message = f"Detected {obj_name} at {distance_val:.2f} meters"
+            print(message)
+            speak_async(message)
+        else:
+            message = f"{obj_name} further than {THRESHOLD} meters"
+            print(message)
+            speak_async(message)
 
 def on_button_press(channel):
     p = multiprocessing.Process(target=button_press_action)
@@ -134,11 +137,11 @@ try:
         min_disp = 0
         num_disp = 16 * 2  # Must be divisible by 16
         block_size = 10
-        current_disparity = make_disparity_map(left_rectified, right_rectified, min_disp, num_disp, block_size)
+        disparity = make_disparity_map(left_rectified, right_rectified, min_disp, num_disp, block_size)
         rectified_pair = (left_rectified, right_rectified)
         
         # Convert disparity to depth map
-        depth_map = cv2.reprojectImageTo3D(current_disparity, Q)
+        depth_map = cv2.reprojectImageTo3D(disparity, Q)
         
         # Ensure valid cropping dimensions
         height, width = depth_map.shape[:2]
@@ -149,16 +152,25 @@ try:
 
         # Extract the Z-values (depth) from the depth map and apply distance factor
         current_distances = depth_map[:, :, 2] * DISTANCE_SCALE
+        closest_distance, closest_coordinates = get_closest_distance(current_distances, max_thresh=THRESHOLD)
         
-        closest_distance, closest_coordinates = get_closest_distance(current_distances)
         
         if closest_distance is not None and closest_coordinates is not None:
             print(f'Closest distance: {closest_distance:.2f} meters at coordinates {closest_coordinates}')
+            speak_async(f'Closest distance: {closest_distance:.2f} meters')
+        
+        # Create a colored depth map for visualization
+        depth_map_colored = make_colored_distance_map(current_distances, min_distance=0, max_distance=THRESHOLD)
+        
+        # Draw the closest point on the left rectified image and disparity map
+        if closest_coordinates is not None:
+            cv2.circle(left_rectified, closest_coordinates, 5, (0, 255, 0), 2)
+            cv2.circle(current_distances, closest_coordinates, 5, (0, 255, 0), 2)
 
         # Display frames
         cv2.imshow("Left Camera", left_rectified)
         cv2.imshow("Right Camera", right_rectified)
-        cv2.imshow("Depth Map", current_distances)
+        cv2.imshow("Depth Map", depth_map_colored)
 
         # Check for quit command
         key = cv2.waitKey(1) & 0xFF
