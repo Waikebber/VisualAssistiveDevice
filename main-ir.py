@@ -1,13 +1,11 @@
-import os, json
+import os, json, multiprocessing
 import cv2
 import numpy as np
+import RPi.GPIO as GPIO
 from speakers import speak
 from stereo_calibration.camera.cam_config import initialize_camera
-import multiprocessing
-import RPi.GPIO as GPIO
 from image_rec.img_rec import ImgRec
-from stereo_calibration.rectify import get_closest_distance, make_colored_distance_map, rectify_imgs
-from stereo_calibration.disparity import make_disparity_map
+from stereo_calibration.rectify import get_closest_distance, make_colored_distance_map, rectify_imgs, make_disparity_map
 from image_rec.stereoImgRec import create_detection_image, calculate_object_distances
 
 CONFIDENCE = 0.6
