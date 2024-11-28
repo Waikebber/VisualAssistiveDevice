@@ -6,7 +6,7 @@ from stereo_calibration.camera.cam_config import initialize_camera
 import multiprocessing
 import RPi.GPIO as GPIO
 from image_rec.img_rec import ImgRec
-from stereo_calibration.rectify import rectify_imgs
+from stereo_calibration.rectify import get_closest_distance, rectify_imgs
 from stereo_calibration.disparity import make_disparity_map
 from image_rec.stereoImgRec import create_detection_image, calculate_object_distances
 
@@ -18,6 +18,7 @@ SAVE_OUTPUT = True
 OUTPUT_DIR = 'output'
 OUTPUT_FILE = 'output.png'
 DISPLAY_RATIO = 0.5  # Scaling factor for display
+BORDER = 15
 
 # Load configuration from config.json
 config_path = CONFIG_FILE
@@ -138,8 +139,22 @@ try:
         
         # Convert disparity to depth map
         depth_map = cv2.reprojectImageTo3D(current_disparity, Q)
-        current_distances = depth_map[:,:,2] * DISTANCE_SCALE
         
+        # Ensure valid cropping dimensions
+        height, width = depth_map.shape[:2]
+        if height > 2 * BORDER and width > 2 * BORDER:
+            depth_map = depth_map[BORDER:height - BORDER, BORDER:width - BORDER]
+        else:
+            print("Warning: Border cropping exceeds depth map dimensions, skipping cropping.")
+
+        # Extract the Z-values (depth) from the depth map and apply distance factor
+        current_distances = depth_map[:, :, 2] * DISTANCE_SCALE
+        
+        closest_distance, closest_coordinates = get_closest_distance(current_distances)
+        
+        if closest_distance is not None and closest_coordinates is not None:
+            print(f'Closest distance: {closest_distance:.2f} meters at coordinates {closest_coordinates}')
+
         # Display frames
         cv2.imshow("Left Camera", left_rectified)
         cv2.imshow("Right Camera", right_rectified)
