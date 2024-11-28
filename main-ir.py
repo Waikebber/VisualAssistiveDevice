@@ -15,8 +15,8 @@ CALIB_RESULTS = 'data/stereo_images/scenes/calibration_results'
 SAVE_OUTPUT = True
 OUTPUT_DIR = 'output'
 OUTPUT_FILE = 'output.png'
-DISPLAY_RATIO = 0.5  # Scaling factor for display
-BORDER = 15
+DISPLAY_RATIO = 1  # Scaling factor for display
+BORDER = 15        # Border to ignore for depth map calculations
 
 # Load configuration from config.json
 config_path = CONFIG_FILE
