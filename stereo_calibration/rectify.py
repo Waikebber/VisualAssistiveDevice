@@ -6,6 +6,19 @@ import numpy as np
 from scipy.ndimage import median_filter
 
 def rectify_imgs(left, right, calibration_dir="../data/stereo_images/scenes/calibration_results"):
+    """ Rectify stereo images using precomputed calibration data.
+    Parameters:
+        left (numpy.ndarray): The left image to be rectified.
+        right (numpy.ndarray): The right image to be rectified.
+        calibration_dir (str): Directory containing the calibration data files. Default is "../data/stereo_images/scenes/calibration_results".
+    Returns:
+        tuple: A tuple containing:
+            - left_rectified (numpy.ndarray): The rectified left image.
+            - right_rectified (numpy.ndarray): The rectified right image.
+            - Q (numpy.ndarray): The disparity-to-depth mapping matrix.
+            - focal_length (float): The focal length of the left camera.
+    """
+    
     # Step 1: Load Calibration Data and Rectify Images
     # Load calibration data
     left_npzfile = np.load("{}/calibration_left.npz".format(calibration_dir))
@@ -29,6 +42,19 @@ def rectify_imgs(left, right, calibration_dir="../data/stereo_images/scenes/cali
     return left_rectified, right_rectified, Q, focal_length
 
 def make_disparity_map(left_rectified, right_rectified, min_disp=0, num_disp=16*9, block_size=9):
+    """
+    Generates a disparity map from rectified stereo image pairs using the Semi-Global Block Matching (SGBM) algorithm.
+    
+    Args:
+        left_rectified (numpy.ndarray): The rectified left image.
+        right_rectified (numpy.ndarray): The rectified right image.
+        min_disp (int, optional): Minimum possible disparity value. Default is 0.
+        num_disp (int, optional): Maximum disparity minus minimum disparity. Must be divisible by 16. Default is 16*9.
+        block_size (int, optional): Matched block size. It must be an odd number >=1. Default is 9.
+    Returns:
+        numpy.ndarray: The computed disparity map as a floating-point array.
+    """
+    
     stereo = cv2.StereoSGBM_create(
         minDisparity=min_disp,
         numDisparities=num_disp,
@@ -51,11 +77,11 @@ def get_closest_distance(distances, min_thresh=1.6, max_thresh=5, morph_filter=T
     Finds the closest valid distance from the depth map while avoiding noise.
 
     Parameters:
-    distances (numpy.ndarray): A depth map containing distance values for each pixel.
-    min_thresh (float, optional): The minimum threshold distance to be considered valid (default is 1.6).
-    max_thresh (float, optional): The maximum threshold distance to be considered valid (default is 5).
-    morph_filter (bool, optional): Whether to apply morphological filtering to reduce isolated noise (default is True).
-    window_size (int, optional): The size of the sliding window to evaluate local clusters (default is 15).
+        distances (numpy.ndarray): A depth map containing distance values for each pixel.
+        min_thresh (float, optional): The minimum threshold distance to be considered valid (default is 1.6).
+        max_thresh (float, optional): The maximum threshold distance to be considered valid (default is 5).
+        morph_filter (bool, optional): Whether to apply morphological filtering to reduce isolated noise (default is True).
+        window_size (int, optional): The size of the sliding window to evaluate local clusters (default is 15).
 
     Returns:
     tuple: Closest distance (float) and the coordinates of the closest point (tuple).
@@ -89,3 +115,38 @@ def get_closest_distance(distances, min_thresh=1.6, max_thresh=5, morph_filter=T
     closest_coordinates = np.unravel_index(closest_index, distances_filtered.shape)
 
     return closest_distance, closest_coordinates
+
+
+def make_colored_distance_map(distances, min_distance, max_distance):
+    """
+    Generates a colored distance map from a given distance array, applying a specified threshold range.
+    Parameters:
+        distances (numpy.ndarray): A 2D array of distance values.
+        min_distance (float): The minimum distance threshold.
+        max_distance (float): The maximum distance threshold.
+    Returns:
+        numpy.ndarray: A 3D array representing the colored distance map, or None if no values are within the threshold range.
+    """
+    # Create a masked version of distances between MIN_THRESH and MAX_THRESH
+    masked_distances = np.where((distances >= min_distance) & (distances <= max_distance), distances, np.nan)
+
+    # Normalize the depth values within the threshold range for display purposes
+    valid_mask = np.isfinite(masked_distances)  # Mask to find valid (non-NaN) values
+    
+    if np.sum(valid_mask) > 0:
+        # Normalize only valid values within the range
+        min_valid = np.nanmin(masked_distances)
+        max_valid = np.nanmax(masked_distances)
+        depth_map_normalized = np.zeros_like(masked_distances)
+        
+        # Apply normalization only to the valid range
+        depth_map_normalized[valid_mask] = 255 * (masked_distances[valid_mask] - min_valid) / (max_valid - min_valid)
+        depth_map_normalized = depth_map_normalized.astype(np.uint8)
+
+        # Apply a colormap for better visualization
+        depth_map_colored = cv2.applyColorMap(depth_map_normalized, cv2.COLORMAP_JET)
+        depth_map_colored = cv2.cvtColor(depth_map_colored, cv2.COLOR_BGR2RGB)
+        return depth_map_colored
+    else:
+        print(f"No values found within the threshold range [{min_distance}, {max_distance}] meters.")
+        return None
