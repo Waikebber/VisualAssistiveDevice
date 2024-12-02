@@ -7,6 +7,7 @@ from stereo_calibration.camera.cam_config import initialize_camera
 from image_rec.img_rec import ImgRec
 from stereo_calibration.rectify import get_closest_distance, make_colored_distance_map, rectify_imgs, make_disparity_map
 from image_rec.stereoImgRec import create_detection_image, calculate_object_distances
+from scipy.ndimage import median_filter
 
 CONFIDENCE = 0.6
 THRESHOLD = 2.5   # Threshold in meters (2.5m)
@@ -16,7 +17,7 @@ SAVE_OUTPUT = True
 OUTPUT_DIR = 'output'
 OUTPUT_FILE = 'output.png'
 DISPLAY_RATIO = 1  # Scaling factor for display
-BORDER = 15        # Border to ignore for depth map calculations
+BORDER = 50        # Border to ignore for depth map calculations
 
 # Load configuration from config.json
 config_path = CONFIG_FILE
@@ -48,7 +49,7 @@ img_recognizer = ImgRec()
 
 # GPIO Setup
 GPIO.setmode(GPIO.BCM)
-BUTTON_PIN = 21
+BUTTON_PIN = 26
 GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 
 def button_press_action():
@@ -103,8 +104,6 @@ camera_right.start()
 # Initialize interface windows
 cv2.namedWindow("Depth Map")
 cv2.moveWindow("Depth Map", 50, 100)
-cv2.namedWindow("Disparity Map")
-cv2.moveWindow("Disparity Map", 200, 100)
 cv2.namedWindow("Left Camera")
 cv2.moveWindow("Left Camera", 450, 100)
 cv2.namedWindow("Right Camera")
@@ -124,32 +123,31 @@ try:
         current_frame_left = camera_left.capture_array()
         current_frame_right = camera_right.capture_array()
     
-        # Convert to grayscale
-        imgLeft = cv2.cvtColor(current_frame_left, cv2.COLOR_BGR2GRAY)
-        imgRight = cv2.cvtColor(current_frame_right, cv2.COLOR_BGR2GRAY)
-    
         # Rectify the stereo pair
-        left_rectified, right_rectified, Q, focal_length = rectify_imgs(imgLeft, imgRight, CALIB_RESULTS)
-    
-        # Create disparity map
+        left_rectified, right_rectified, Q, focal_length = rectify_imgs(current_frame_left, current_frame_right, CALIB_RESULTS)
+
+        # Generate the disparity map
         min_disp = 0
-        num_disp = 16 * 2  # Must be divisible by 16
+        num_disp = 16 * 2  # must be divisible by 16
         block_size = 10
         disparity = make_disparity_map(left_rectified, right_rectified, min_disp, num_disp, block_size)
         rectified_pair = (left_rectified, right_rectified)
         
         # Convert disparity to depth map
         depth_map = cv2.reprojectImageTo3D(disparity, Q)
-        
-        # Ensure valid cropping dimensions
-        height, width = depth_map.shape[:2]
-        if height > 2 * BORDER and width > 2 * BORDER:
-            depth_map = depth_map[BORDER:height - BORDER, BORDER:width - BORDER]
-        else:
-            print("Warning: Border cropping exceeds depth map dimensions, skipping cropping.")
-
-        # Extract the Z-values (depth) from the depth map and apply distance factor
         current_distances = depth_map[:, :, 2] * DISTANCE_SCALE
+        
+        # Cropped
+        # height, width = depth_map.shape[:2]
+        # if height > 2 * BORDER and width > 2 * BORDER:
+        #     cropped_depth_map = depth_map[BORDER:height-BORDER, BORDER:width-BORDER]
+        #     cropped_distances = current_distances[BORDER:height-BORDER, BORDER:width-BORDER]
+        # else:
+        #     cropped_depth_map = depth_map
+        #     cropped_distances = current_distances
+    
+        
+        # Extract the Z-values (depth) from the depth map and apply distance factor
         closest_distance, closest_coordinates = get_closest_distance(current_distances, max_thresh=THRESHOLD)
         
         
