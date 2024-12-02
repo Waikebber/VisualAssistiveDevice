@@ -136,22 +136,10 @@ try:
         # Convert disparity to depth map
         depth_map = cv2.reprojectImageTo3D(disparity, Q)
         current_distances = depth_map[:, :, 2] * DISTANCE_SCALE
+
+        closest_distance, closest_coordinates = get_closest_distance(current_distances)
         
-        # Cropped
-        # height, width = depth_map.shape[:2]
-        # if height > 2 * BORDER and width > 2 * BORDER:
-        #     cropped_depth_map = depth_map[BORDER:height-BORDER, BORDER:width-BORDER]
-        #     cropped_distances = current_distances[BORDER:height-BORDER, BORDER:width-BORDER]
-        # else:
-        #     cropped_depth_map = depth_map
-        #     cropped_distances = current_distances
-    
-        
-        # Extract the Z-values (depth) from the depth map and apply distance factor
-        closest_distance, closest_coordinates = get_closest_distance(current_distances, max_thresh=THRESHOLD)
-        
-        
-        if closest_distance is not None and closest_coordinates is not None:
+        if closest_distance is not None and closest_coordinates is not None and closest_distance < THRESHOLD:
             print(f'Closest distance: {closest_distance:.2f} meters at coordinates {closest_coordinates}')
             speak_async(f'Closest distance: {closest_distance:.2f} meters')
         
