@@ -28,6 +28,7 @@ All required Python packages are listed in the requirements.txt file. Install th
 ```bash
 pip install -r requirements.txt
 ```
+
 ## Project Structure
 
 ```
@@ -36,14 +37,16 @@ project_root/
 ├── main-ir.py                # Stereo vision with image recognition
 ├── image_rec/              # Image recognition package
 │   ├── __init__.py
-│   └── img_rec.py            # YOLO implementation
+│   ├── img_rec.py           # YOLO implementation
+│   └── stereoImgRec.py      # Stereo image recognition helpers
 ├── speakers/               # Audio feedback package
 │   ├── __init__.py
 │   └── generative_audio.py   # Text-to-speech function
 └── stereo_calibration/     # Calibration files
     ├── cam_config.json       # Camera configuration
-    ├── 3dmap_set.txt         # Stereo matching parameters
+    ├── 3dmap_set.txt        # Stereo matching parameters
     ├── tuning_helper.py      # Helper for loading 3dmap_set.txt
+    ├── rectify.py           # Image rectification and depth mapping
     └── calib_result/         # Camera calibration data
 ```
 
@@ -56,8 +59,8 @@ project_root/
    - Resolution settings
 
 2. Distance Thresholds
-   - Set warning distance in meters (default: 1.0m)
-   - Adjust confidence threshold for object detection (default: 0.5)
+   - Set warning distance in meters (default: 3.5m)
+   - Adjust confidence threshold for object detection (default: 0.6)
 
 ## Usage
 
@@ -77,11 +80,11 @@ python main-ir.py
 
 ## Operation Modes
 
-1. **Display Mode** (DISPLAY = True):
+1. **Display Mode**:
    - Shows real-time camera feeds and depth map
    - Useful for testing and calibration
 
-2. **Headless Mode** (DISPLAY = False):
+2. **Headless Mode**:
    - Runs without visual output
    - Suitable for standalone operation
    - Reduces processing overhead
@@ -92,8 +95,8 @@ The system provides audio notifications for:
 - Proximity warnings when objects are closer than the threshold
 - Object detection results including:
   - Object type
-  - Distance in meters and feet
-  - Confidence level
+  - Distance in meters
+  - Location relative to the user
 
 ## Calibration
 
@@ -107,8 +110,8 @@ The stereo cameras need to be calibrated before use:
 - Resolution affects processing speed
 - Adjustable parameters:
   - Image scale ratio
-  - Detection confidence threshold
-  - Distance warning threshold
+  - Detection confidence threshold (default: 0.6)
+  - Distance warning threshold (default: 3.5m)
   - Frame processing rate
 
 ## Safety Notes
