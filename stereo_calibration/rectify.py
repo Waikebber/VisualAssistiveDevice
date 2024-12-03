@@ -72,7 +72,7 @@ def make_disparity_map(left_rectified, right_rectified, min_disp=0, num_disp=16*
     
     return disparity_map
 
-def get_closest_distance(distances, min_thresh=0.25, max_thresh=5, morph_filter=True, window_size=15, border = 20):
+def get_closest_distance(distances, min_thresh=1, max_thresh=5, morph_filter=True, window_size=21, border = 20):
     """
     Finds the closest valid distance from the depth map while avoiding noise.
 
