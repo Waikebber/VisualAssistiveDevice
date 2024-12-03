@@ -13,8 +13,8 @@ from dataclasses import dataclass
 from typing import Any
 from enum import Enum
 
-CONFIDENCE = 0.6
-THRESHOLD = 3.5   # Threshold in meters (2.5m)
+CONFIDENCE = 0.6  # Img Rec needs 60% confidence
+THRESHOLD = 3.5   # Threshold in meters (3.5m)
 CONFIG_FILE = "stereo_calibration/cam_config.json"
 CALIB_RESULTS = 'data/stereo_images/scenes/calibration_results'
 SAVE_OUTPUT = True
@@ -22,6 +22,8 @@ OUTPUT_DIR = 'output'
 OUTPUT_FILE = 'output.png'
 DISPLAY_RATIO = 1  # Scaling factor for display
 BORDER = 50        # Border to ignore for depth map calculations
+
+################# Import Configurations ################# 
 
 # Load configuration from config.json
 config_path = CONFIG_FILE
@@ -87,7 +89,6 @@ def audio_worker():
         except Exception as e:
             print(f"Error in audio worker: {e}")
 
-audio_process = None
 def speak_async(text, priority=Priority.LOW):
     """Add text to the appropriate priority queue"""
     try:
@@ -99,6 +100,8 @@ def speak_async(text, priority=Priority.LOW):
     except Exception as e:
         print(f"Error queueing audio: {e}")
 
+audio_worker_process = Process(target=audio_worker, daemon=True)
+audio_worker_process.start()
 ################# GPIO Setup #################
 GPIO.setmode(GPIO.BCM)
 BUTTON_PIN = 26
