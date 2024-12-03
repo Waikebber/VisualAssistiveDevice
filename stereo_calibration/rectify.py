@@ -72,7 +72,7 @@ def make_disparity_map(left_rectified, right_rectified, min_disp=0, num_disp=16*
     
     return disparity_map
 
-def get_closest_distance(distances, min_thresh=1.6, max_thresh=5, border=20):
+def get_closest_distance(distances, min_thresh=0.75, max_thresh=5, border=20):
     """
     A faster version of get_closest_distance that avoids sliding windows.
     
@@ -85,10 +85,11 @@ def get_closest_distance(distances, min_thresh=1.6, max_thresh=5, border=20):
     Returns:
         tuple: (closest_distance, closest_coordinates) or (None, None) if no valid points found
     """
-    # Create mask for valid distances
+    # Create mask for valid distances and explicitly exclude negative values
     valid_mask = (
         (distances >= min_thresh) & 
         (distances <= max_thresh) & 
+        (distances > 0) &  # Explicitly exclude negative values
         np.isfinite(distances)
     )
     
@@ -111,7 +112,7 @@ def get_closest_distance(distances, min_thresh=1.6, max_thresh=5, border=20):
     # Find index of minimum distance
     min_idx = np.argmin(valid_distances)
     
-    # Get coordinates and distance
+    # Get coordinates and distance (y, x order in valid_points)
     min_y = valid_points[0][min_idx]
     min_x = valid_points[1][min_idx]
     min_distance = valid_distances[min_idx]
@@ -128,7 +129,8 @@ def get_closest_distance(distances, min_thresh=1.6, max_thresh=5, border=20):
     
     # Only return point if it has at least 2 valid neighbors
     if valid_neighbors >= 2:
-        return min_distance, (min_x, min_y)
+        # Return coordinates in (x,y) order for OpenCV functions
+        return min_distance, (min_x, min_y)  # Note: returning (x,y) for OpenCV compatibility
     
     return None, None
 
