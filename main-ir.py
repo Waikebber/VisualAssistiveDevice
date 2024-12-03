@@ -7,7 +7,11 @@ from stereo_calibration.camera.cam_config import initialize_camera
 from image_rec.img_rec import ImgRec
 from stereo_calibration.rectify import get_closest_distance, make_colored_distance_map, rectify_imgs, make_disparity_map
 from image_rec.stereoImgRec import create_detection_image, calculate_object_distances
-from scipy.ndimage import median_filter
+from multiprocessing import Process, Queue
+from queue import Empty
+from dataclasses import dataclass
+from typing import Any
+from enum import Enum
 
 CONFIDENCE = 0.6
 THRESHOLD = 3.5   # Threshold in meters (2.5m)
@@ -47,7 +51,55 @@ print("Image resolution: " + str(img_width) + " x " + str(img_height))
 # Initialize the image recognition model and distance calculator
 img_recognizer = ImgRec()
 
-# GPIO Setup
+################# Audio Processing #################
+class Priority(Enum):
+    HIGH = 1    # For button press messages
+    LOW = 2     # For regular distance updates
+
+@dataclass
+class PriorityMessage:
+    priority: Priority
+    text: str
+
+# Create two separate queues for different priority levels
+high_priority_queue = Queue()
+low_priority_queue = Queue()
+
+def audio_worker():
+    """Worker process that handles messages based on priority"""
+    while True:
+        try:
+            # Always check high priority queue first
+            try:
+                # Non-blocking check of high priority queue
+                message = high_priority_queue.get_nowait()
+                speak(message.text, 3, 90)
+                continue  # Go back to start of loop to check for more high priority messages
+            except Empty:
+                pass
+
+            # Only check low priority queue if no high priority messages
+            message = low_priority_queue.get(timeout=1)
+            speak(message.text, 3, 90)
+            
+        except Empty:
+            continue
+        except Exception as e:
+            print(f"Error in audio worker: {e}")
+
+audio_process = None
+def speak_async(text, priority=Priority.LOW):
+    """Add text to the appropriate priority queue"""
+    try:
+        message = PriorityMessage(priority=priority, text=text)
+        if priority == Priority.HIGH:
+            high_priority_queue.put(message)
+        else:
+            low_priority_queue.put(message)
+    except Exception as e:
+        print(f"Error queueing audio: {e}")
+
+################# GPIO Setup #################
 GPIO.setmode(GPIO.BCM)
 BUTTON_PIN = 26
 GPIO.setup(BUTTON_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
@@ -81,17 +133,19 @@ def button_press_action():
         if distance_val < THRESHOLD:
             message = f"Detected {obj_name} at {distance_val:.2f} meters"
             print(message)
-            speak_async(message)
+            speak_async(message, Priority.HIGH)
         else:
             message = f"{obj_name} further than {THRESHOLD} meters"
             print(message)
-            speak_async(message)
+            speak_async(message, Priority.HIGH)
 
 def on_button_press(channel):
     p = multiprocessing.Process(target=button_press_action)
     p.start()
 
 GPIO.add_event_detect(BUTTON_PIN, GPIO.RISING, callback=on_button_press, bouncetime=200)
+
+################# Camera Processing #################
 
 # Initialize the cameras
 camera_left = initialize_camera(1, img_width, img_height)
@@ -108,13 +162,6 @@ cv2.namedWindow("Left Camera")
 cv2.moveWindow("Left Camera", 450, 100)
 cv2.namedWindow("Right Camera")
 cv2.moveWindow("Right Camera", 850, 100)
-
-audio_process = None
-def speak_async(text):
-    global audio_process
-    if audio_process is None or not audio_process.is_alive():
-        audio_process = multiprocessing.Process(target=speak, args=(text, 3, 90))
-        audio_process.start()
 
 try:
     # Start the main processing loop
@@ -156,8 +203,9 @@ try:
         )
         
         if closest_distance is not None and closest_coordinates is not None and closest_distance < THRESHOLD:
-            print(f'Closest distance: {closest_distance:.2f} meters at coordinates {closest_coordinates}')
-            speak_async(f'Closest distance: {closest_distance:.2f} meters')
+            message = f'Closest distance: {closest_distance:.2f} meters'
+            print(f'{message} at {closest_coordinates}')
+            speak_async(message, Priority.LOW)
         
         # Create a colored depth map for visualization
         depth_map_colored = make_colored_distance_map(current_distances, min_distance=0, max_distance=THRESHOLD)
