@@ -10,7 +10,7 @@ from image_rec.stereoImgRec import create_detection_image, calculate_object_dist
 from scipy.ndimage import median_filter
 
 CONFIDENCE = 0.6
-THRESHOLD = 2.5   # Threshold in meters (2.5m)
+THRESHOLD = 3.5   # Threshold in meters (2.5m)
 CONFIG_FILE = "stereo_calibration/cam_config.json"
 CALIB_RESULTS = 'data/stereo_images/scenes/calibration_results'
 SAVE_OUTPUT = True
@@ -128,10 +128,17 @@ try:
 
         # Generate the disparity map
         min_disp = 0
-        num_disp = 16 * 2  # must be divisible by 16
+        num_disp = 16 * 4  # must be divisible by 16
         block_size = 10
         disparity = make_disparity_map(left_rectified, right_rectified, min_disp, num_disp, block_size)
         rectified_pair = (left_rectified, right_rectified)
+        
+        # Reduce Noise In Disparity Map
+        if disparity is not None:
+            kernel = np.ones((3,3), np.uint8)
+            disparity = cv2.morphologyEx(disparity, cv2.MORPH_OPEN, kernel)
+            disparity = cv2.morphologyEx(disparity, cv2.MORPH_OPEN, kernel)
+            
         
         # Convert disparity to depth map
         depth_map = cv2.reprojectImageTo3D(disparity, Q)
@@ -144,7 +151,8 @@ try:
             min_thresh=1,
             max_thresh=5,
             border=BORDER,
-            min_region_area=2000  # Adjust based on your typical object size
+            topBorder=100,
+            min_region_area=6000  # Adjust based on your typical object size
         )
         
         if closest_distance is not None and closest_coordinates is not None and closest_distance < THRESHOLD:
