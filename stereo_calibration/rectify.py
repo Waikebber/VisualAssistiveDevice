@@ -72,7 +72,7 @@ def make_disparity_map(left_rectified, right_rectified, min_disp=0, num_disp=16*
     
     return disparity_map
 
-def get_closest_distance(distances, disparity_map, min_thresh=1.6, max_thresh=5, border=20, min_region_area=2000):
+def get_closest_distance(distances, disparity_map, min_thresh=1.6, max_thresh=5, border=20, topBorder=100, min_region_area=2000):
     """
     Find the closest distance by analyzing regions in the disparity map.
     
@@ -81,7 +81,8 @@ def get_closest_distance(distances, disparity_map, min_thresh=1.6, max_thresh=5,
         disparity_map (numpy.ndarray): Raw disparity map
         min_thresh (float): Minimum valid distance
         max_thresh (float): Maximum valid distance
-        border (int): Border size to ignore
+        border (int): Border size to ignore on left, right, and bottom
+        topBorder (int): Border size to ignore from the top
         min_region_area (int): Minimum area (in pixels) for a region to be considered
         
     Returns:
@@ -98,10 +99,13 @@ def get_closest_distance(distances, disparity_map, min_thresh=1.6, max_thresh=5,
     # Convert disparity map to uint8 for contour detection
     disparity_normalized = cv2.normalize(disparity_map, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
     
-    # Apply border mask
+    # Apply masks with different borders
     height, width = distances.shape
-    disparity_normalized[:border, :] = 0
+    # Top border
+    disparity_normalized[:topBorder, :] = 0
+    # Bottom border
     disparity_normalized[-border:, :] = 0
+    # Left and right borders
     disparity_normalized[:, :border] = 0
     disparity_normalized[:, -border:] = 0
     
@@ -131,6 +135,10 @@ def get_closest_distance(distances, disparity_map, min_thresh=1.6, max_thresh=5,
             
         cX = int(M["m10"] / M["m00"])
         cY = int(M["m01"] / M["m00"])
+        
+        # Skip if centroid is in the top border area
+        if cY < topBorder:
+            continue
         
         # Get region around centroid
         window_size = 15
