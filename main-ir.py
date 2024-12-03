@@ -135,23 +135,16 @@ try:
         
         # Convert disparity to depth map
         depth_map = cv2.reprojectImageTo3D(disparity, Q)
-        distances = depth_map[:, :, 2] * DISTANCE_SCALE
+        current_distances = depth_map[:, :, 2] * DISTANCE_SCALE
         
-        # Noise Reduction
-        distances = cv2.medianBlur(distances.astype(np.float32), 5)
-        current_distances = cv2.bilateralFilter(distances, 9, 75, 75)
-        mean_distances = cv2.blur(current_distances, (5,5))
-        distance_diff = np.abs(current_distances - mean_distances)
-        current_distances[distance_diff > 1.0] = np.nan
-
-
+        # In your main loop:
         closest_distance, closest_coordinates = get_closest_distance(
-            distances=current_distances, 
-            min_thresh=1,       # Minimum distance to consider
-            max_thresh=5,       # Maximum distance to consider
-            morph_filter=True,  # Apply morphological filter
-            window_size=23,     # Valid Points needed in a window (object)
-            border = BORDER     # Ignore border regions
+            distances=current_distances,
+            disparity_map=disparity,  # Pass the raw disparity map
+            min_thresh=1,
+            max_thresh=5,
+            border=BORDER,
+            min_region_area=2000  # Adjust based on your typical object size
         )
         
         if closest_distance is not None and closest_coordinates is not None and closest_distance < THRESHOLD:

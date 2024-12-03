@@ -72,67 +72,92 @@ def make_disparity_map(left_rectified, right_rectified, min_disp=0, num_disp=16*
     
     return disparity_map
 
-def get_closest_distance(distances, min_thresh=0.75, max_thresh=5, border=20):
+def get_closest_distance(distances, disparity_map, min_thresh=1.6, max_thresh=5, border=20, min_region_area=2000):
     """
-    A faster version of get_closest_distance that avoids sliding windows.
+    Find the closest distance by analyzing regions in the disparity map.
     
     Parameters:
-        distances (numpy.ndarray): A depth map containing distance values for each pixel
+        distances (numpy.ndarray): Depth map containing distance values
+        disparity_map (numpy.ndarray): Raw disparity map
         min_thresh (float): Minimum valid distance
         max_thresh (float): Maximum valid distance
         border (int): Border size to ignore
+        min_region_area (int): Minimum area (in pixels) for a region to be considered
         
     Returns:
-        tuple: (closest_distance, closest_coordinates) or (None, None) if no valid points found
+        tuple: (closest_distance, closest_coordinates) or (None, None) if no valid regions found
     """
-    # Create mask for valid distances and explicitly exclude negative values
+    # Create initial mask for valid distances
     valid_mask = (
         (distances >= min_thresh) & 
         (distances <= max_thresh) & 
-        (distances > 0) &  # Explicitly exclude negative values
+        (distances > 0) &
         np.isfinite(distances)
     )
     
+    # Convert disparity map to uint8 for contour detection
+    disparity_normalized = cv2.normalize(disparity_map, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+    
     # Apply border mask
     height, width = distances.shape
-    valid_mask[:border, :] = False
-    valid_mask[-border:, :] = False
-    valid_mask[:, :border] = False
-    valid_mask[:, -border:] = False
+    disparity_normalized[:border, :] = 0
+    disparity_normalized[-border:, :] = 0
+    disparity_normalized[:, :border] = 0
+    disparity_normalized[:, -border:] = 0
     
-    # Find valid points
-    valid_points = np.where(valid_mask)
+    # Apply threshold to get regions with significant disparity
+    _, binary_mask = cv2.threshold(disparity_normalized, 30, 255, cv2.THRESH_BINARY)
     
-    if len(valid_points[0]) == 0:
+    # Clean up the mask
+    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+    binary_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_OPEN, kernel)
+    binary_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_CLOSE, kernel)
+    
+    # Find contours
+    contours, _ = cv2.findContours(binary_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    closest_distance = float('inf')
+    closest_coordinates = None
+    
+    for contour in contours:
+        area = cv2.contourArea(contour)
+        if area < min_region_area:
+            continue
+            
+        # Get the centroid
+        M = cv2.moments(contour)
+        if M["m00"] == 0:
+            continue
+            
+        cX = int(M["m10"] / M["m00"])
+        cY = int(M["m01"] / M["m00"])
+        
+        # Get region around centroid
+        window_size = 15
+        half_window = window_size // 2
+        
+        # Ensure coordinates are within bounds
+        start_y = max(0, cY - half_window)
+        end_y = min(height, cY + half_window + 1)
+        start_x = max(0, cX - half_window)
+        end_x = min(width, cX + half_window + 1)
+        
+        # Get window of distances
+        distance_window = distances[start_y:end_y, start_x:end_x]
+        valid_window = valid_mask[start_y:end_y, start_x:end_x]
+        
+        # Calculate average distance of valid points in window
+        valid_distances = distance_window[valid_window]
+        if len(valid_distances) > 0:
+            avg_distance = np.mean(valid_distances)
+            if avg_distance < closest_distance:
+                closest_distance = avg_distance
+                closest_coordinates = (cX, cY)
+    
+    if closest_coordinates is None:
         return None, None
         
-    # Get distances for valid points
-    valid_distances = distances[valid_points]
-    
-    # Find index of minimum distance
-    min_idx = np.argmin(valid_distances)
-    
-    # Get coordinates and distance (y, x order in valid_points)
-    min_y = valid_points[0][min_idx]
-    min_x = valid_points[1][min_idx]
-    min_distance = valid_distances[min_idx]
-    
-    # Optional: Verify this isn't an isolated point
-    # Get 3x3 window around minimum point
-    y_start = max(0, min_y - 1)
-    y_end = min(height, min_y + 2)
-    x_start = max(0, min_x - 1)
-    x_end = min(width, min_x + 2)
-    
-    window = valid_mask[y_start:y_end, x_start:x_end]
-    valid_neighbors = np.sum(window) - 1  # Subtract 1 to not count the point itself
-    
-    # Only return point if it has at least 2 valid neighbors
-    if valid_neighbors >= 2:
-        # Return coordinates in (x,y) order for OpenCV functions
-        return min_distance, (min_x, min_y)  # Note: returning (x,y) for OpenCV compatibility
-    
-    return None, None
+    return closest_distance, closest_coordinates
 
 
 def make_colored_distance_map(distances, min_distance, max_distance):
