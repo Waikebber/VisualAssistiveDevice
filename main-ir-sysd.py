@@ -126,6 +126,8 @@ def speak_async(text, priority=Priority.LOW):
         logging.warning(f"Error queueing audio: {e}")
         print(f"Error queueing audio: {e}")
 
+audio_worker_process = Process(target=audio_worker, daemon=True)
+audio_worker_process.start()
 ################# GPIO Setup #################
 GPIO.setmode(GPIO.BCM)
 BUTTON_PIN = 26
