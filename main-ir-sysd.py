@@ -16,6 +16,8 @@ from enum import Enum
 import logging
 import signal
 import sys
+import threading
+from multiprocessing.synchronize import Event
 
 CONFIDENCE = 0.6
 THRESHOLD = 3.5   # Threshold in meters (2.5m)
