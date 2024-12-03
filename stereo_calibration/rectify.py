@@ -72,71 +72,65 @@ def make_disparity_map(left_rectified, right_rectified, min_disp=0, num_disp=16*
     
     return disparity_map
 
-def get_closest_distance(distances, min_thresh=1, max_thresh=5, morph_filter=True, window_size=21, border = 20):
+def get_closest_distance(distances, min_thresh=1.6, max_thresh=5, border=20):
     """
-    Finds the closest valid distance from the depth map while avoiding noise.
-
+    A faster version of get_closest_distance that avoids sliding windows.
+    
     Parameters:
-        distances (numpy.ndarray): A depth map containing distance values for each pixel.
-        min_thresh (float, optional): The minimum threshold distance to be considered valid.
-        max_thresh (float, optional): The maximum threshold distance to be considered valid.
-        morph_filter (bool, optional): Whether to apply morphological filtering to reduce isolated noise.
-        window_size (int, optional): The size of the sliding window to evaluate local clusters.
-        border (int, optional): The border size to ignore around the edges of the depth map.
-
+        distances (numpy.ndarray): A depth map containing distance values for each pixel
+        min_thresh (float): Minimum valid distance
+        max_thresh (float): Maximum valid distance
+        border (int): Border size to ignore
+        
     Returns:
-        tuple: Closest distance (float) and the coordinates of the closest point (tuple).
+        tuple: (closest_distance, closest_coordinates) or (None, None) if no valid points found
     """
-    # Create a copy to avoid modifying the original
-    distances_copy = distances.copy()
+    # Create mask for valid distances
+    valid_mask = (
+        (distances >= min_thresh) & 
+        (distances <= max_thresh) & 
+        np.isfinite(distances)
+    )
     
-    # Filter out invalid depth values
-    invalid_mask = (~np.isfinite(distances_copy)) | (distances_copy <= min_thresh) | (distances_copy >= max_thresh)
-    distances_copy[invalid_mask] = np.nan
+    # Apply border mask
+    height, width = distances.shape
+    valid_mask[:border, :] = False
+    valid_mask[-border:, :] = False
+    valid_mask[:, :border] = False
+    valid_mask[:, -border:] = False
     
-    # Apply median filter to reduce noise
-    distances_filtered = median_filter(distances_copy, size=3)
+    # Find valid points
+    valid_points = np.where(valid_mask)
     
-    # Create validity mask
-    valid_mask = np.isfinite(distances_filtered)
-    
-    if morph_filter:
-        kernel = np.ones((3, 3), np.uint8)
-        valid_mask = cv2.morphologyEx(valid_mask.astype(np.uint8), cv2.MORPH_OPEN, kernel)
-        valid_mask = cv2.morphologyEx(valid_mask, cv2.MORPH_CLOSE, kernel)
-    
-    # Apply the mask
-    distances_filtered[valid_mask != 1] = np.nan
-    
-    # If no valid distances remain, return None
-    if not np.any(np.isfinite(distances_filtered)):
-        return None, None
-    
-    # Find clusters of valid points using a sliding window
-    height, width = distances_filtered.shape
-    min_distance = float('inf')
-    min_coordinates = None
-    
-    for y in range(border, height - border):
-        for x in range(border, width - border):
-            # Get window around current point
-            window = distances_filtered[
-                max(0, y - window_size//2):min(height, y + window_size//2 + 1),
-                max(0, x - window_size//2):min(width, x + window_size//2 + 1)
-            ]
-            
-            # Check if we have enough valid points in the window
-            valid_points = np.sum(np.isfinite(window))
-            if valid_points > (window_size * window_size * 0.3):  # At least 30% of window should be valid
-                current_distance = distances_filtered[y, x]
-                if np.isfinite(current_distance) and current_distance < min_distance:
-                    min_distance = current_distance
-                    min_coordinates = (x, y)
-    
-    if min_coordinates is None:
+    if len(valid_points[0]) == 0:
         return None, None
         
-    return min_distance, min_coordinates
+    # Get distances for valid points
+    valid_distances = distances[valid_points]
+    
+    # Find index of minimum distance
+    min_idx = np.argmin(valid_distances)
+    
+    # Get coordinates and distance
+    min_y = valid_points[0][min_idx]
+    min_x = valid_points[1][min_idx]
+    min_distance = valid_distances[min_idx]
+    
+    # Optional: Verify this isn't an isolated point
+    # Get 3x3 window around minimum point
+    y_start = max(0, min_y - 1)
+    y_end = min(height, min_y + 2)
+    x_start = max(0, min_x - 1)
+    x_end = min(width, min_x + 2)
+    
+    window = valid_mask[y_start:y_end, x_start:x_end]
+    valid_neighbors = np.sum(window) - 1  # Subtract 1 to not count the point itself
+    
+    # Only return point if it has at least 2 valid neighbors
+    if valid_neighbors >= 2:
+        return min_distance, (min_x, min_y)
+    
+    return None, None
 
 
 def make_colored_distance_map(distances, min_distance, max_distance):
