@@ -23,10 +23,12 @@ A Raspberry Pi-based visual assistance system that combines stereo vision for de
 - Power supply
 
 ## Software Dependencies
-All required Python packages are listed in the requirements.txt file. Install them using pip:
+Please use the bash script as follows for the environemnt:
 
 ```bash
-pip install -r requirements.txt
+chmod +x setup_env.sh
+./setup_env.sh
+source yolo-env/bin/activate
 ```
 
 ## Project Structure
