@@ -12,6 +12,8 @@ from queue import Empty
 from dataclasses import dataclass
 from typing import Any
 from enum import Enum
+import threading
+from multiprocessing.synchronize import Event
 
 CONFIDENCE = 0.6  # Img Rec needs 60% confidence
 THRESHOLD = 3.5   # Threshold in meters (3.5m)
@@ -53,6 +55,9 @@ print("Image resolution: " + str(img_width) + " x " + str(img_height))
 # Initialize the image recognition model and distance calculator
 img_recognizer = ImgRec()
 
+# Shutsdown the System
+shutdown_event = multiprocessing.Event()
+
 ################# Audio Processing #################
 class Priority(Enum):
     HIGH = 1    # For button press messages
@@ -69,25 +74,23 @@ low_priority_queue = Queue()
 
 def audio_worker():
     """Worker process that handles messages based on priority"""
-    while True:
+    while not shutdown_event.is_set():
         try:
-            # Always check high priority queue first
             try:
-                # Non-blocking check of high priority queue
                 message = high_priority_queue.get_nowait()
                 speak(message.text, 3, 90)
-                continue  # Go back to start of loop to check for more high priority messages
+                continue
             except Empty:
                 pass
 
-            # Only check low priority queue if no high priority messages
             message = low_priority_queue.get(timeout=1)
             speak(message.text, 3, 90)
             
         except Empty:
             continue
         except Exception as e:
-            print(f"Error in audio worker: {e}")
+            if not shutdown_event.is_set():
+                print(f"Error in audio worker: {e}")
 
 def speak_async(text, priority=Priority.LOW):
     """Add text to the appropriate priority queue"""
@@ -234,6 +237,10 @@ except Exception as e:
 
 finally:
     # Ensure cleanup happens no matter what
+    shutdown_event.set()
+    audio_worker_process.join(timeout=2)
+    if audio_worker_process.is_alive():
+        audio_worker_process.terminate()
     camera_left.stop()
     camera_right.stop()
     cv2.destroyAllWindows()
