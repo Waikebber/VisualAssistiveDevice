@@ -76,6 +76,9 @@ print("Image resolution: " + str(img_width) + " x " + str(img_height))
 # Initialize the image recognition model and distance calculator
 img_recognizer = ImgRec()
 
+# Shutsdown the System
+shutdown_event = multiprocessing.Event()
+
 ################# Audio Processing #################
 class Priority(Enum):
     HIGH = 1    # For button press messages
@@ -92,7 +95,7 @@ low_priority_queue = Queue()
 
 def audio_worker():
     """Worker process that handles messages based on priority"""
-    while True:
+    while not shutdown_event.is_set():
         try:
             # Always check high priority queue first
             try:
@@ -110,8 +113,9 @@ def audio_worker():
         except Empty:
             continue
         except Exception as e:
-            logging.warning(f"Error in audio worker: {e}")
-            print(f"Error in audio worker: {e}")
+            if not shutdown_event.is_set():
+                logging.warning(f"Error in audio worker: {e}")
+                print(f"Error in audio worker: {e}")
 
 audio_process = None
 def speak_async(text, priority=Priority.LOW):
@@ -267,6 +271,10 @@ except Exception as e:
 
 finally:
     # Ensure cleanup happens no matter what
+    shutdown_event.set()
+    audio_worker_process.join(timeout=2)
+    if audio_worker_process.is_alive():
+        audio_worker_process.terminate()
     camera_left.stop()
     camera_right.stop()
     # cv2.destroyAllWindows()

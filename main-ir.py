@@ -84,7 +84,7 @@ def audio_worker():
                 pass
 
             message = low_priority_queue.get(timeout=1)
-            speak(message.text, 3, 90)
+            speak(message.text, 3, 70)
             
         except Empty:
             continue
