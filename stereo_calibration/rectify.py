@@ -24,6 +24,12 @@ def rectify_imgs(left, right, calibration_dir="../data/stereo_images/scenes/cali
     left_npzfile = np.load("{}/calibration_left.npz".format(calibration_dir))
     right_npzfile = np.load("{}/calibration_right.npz".format(calibration_dir))
     stereo_npzfile = np.load("{}/stereo_calibration.npz".format(calibration_dir))
+    
+    # undistortion maps
+    left_map_x_undistort = left_npzfile["left_map"]
+    right_map_x_undistort = right_npzfile["left_map"]
+    left_map_y_undistort = left_npzfile["right_map"]
+    right_map_y_undistort = right_npzfile["right_map"]
    
     # rectification maps
     left_map_x_rectify = stereo_npzfile["left_map_x_rectify"]
@@ -35,9 +41,14 @@ def rectify_imgs(left, right, calibration_dir="../data/stereo_images/scenes/cali
     
     focal_length = left_npzfile['camera_matrix'][0][0]
 
+
+    # Apply undistortion maps to get undistorted images
+    left_undistorted = cv2.remap(left, left_map_x_undistort, left_map_y_undistort, interpolation=cv2.INTER_LINEAR)
+    right_undistorted = cv2.remap(right, right_map_x_undistort, right_map_y_undistort, interpolation=cv2.INTER_LINEAR)
+    
     # Apply rectification maps (from calibration results) to get rectified images
-    left_rectified = cv2.remap(left, left_map_x_rectify, left_map_y_rectify, interpolation=cv2.INTER_LINEAR)
-    right_rectified = cv2.remap(right, right_map_x_rectify, right_map_y_rectify, interpolation=cv2.INTER_LINEAR)
+    left_rectified = cv2.remap(left_undistorted, left_map_x_rectify, left_map_y_rectify, interpolation=cv2.INTER_LINEAR)
+    right_rectified = cv2.remap(right_undistorted, right_map_x_rectify, right_map_y_rectify, interpolation=cv2.INTER_LINEAR)
     
     return left_rectified, right_rectified, Q, focal_length
 
