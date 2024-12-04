@@ -14,6 +14,8 @@ from typing import Any
 from enum import Enum
 import threading
 from multiprocessing.synchronize import Event
+import logging
+import signal
 
 CONFIDENCE = 0.75  # Img Rec needs 75% confidence
 THRESHOLD = 3.5   # Threshold in meters (3.5m)
@@ -25,7 +27,23 @@ OUTPUT_FILE = 'output.png'
 DISPLAY_RATIO = 1  # Scaling factor for display
 BORDER = 50        # Border to ignore for depth map calculations
 
-################# Import Configurations ################# 
+################# SystemD ################# 
+
+# Function to handle termination signals
+def handle_exit(signum, frame):
+    logging.info("Received termination signal. Exiting gracefully...")
+    sys.exit(0)
+
+# Register signal handlers for SIGTERM and SIGINT
+signal.signal(signal.SIGTERM, handle_exit)
+signal.signal(signal.SIGINT, handle_exit)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler()]
+)
+
 
 # Load configuration from config.json
 config_path = CONFIG_FILE
@@ -47,10 +65,12 @@ DISTANCE_SCALE = BASELINE * 5 / 8
 cam_width = int((cam_width + 31) / 32) * 32
 cam_height = int((cam_height + 15) / 16) * 16
 print("Used camera resolution: " + str(cam_width) + " x " + str(cam_height))
+logging.info(f"Used camera resolution: {str(cam_width)} x {str(cam_height)}")
 img_width = int(cam_width * scale_ratio)
 img_height = int(cam_height * scale_ratio)
 capture = np.zeros((img_height, img_width, 4), dtype=np.uint8)
 print("Image resolution: " + str(img_width) + " x " + str(img_height))
+logging.info(f"Image resolution: {str(img_width)} x {str(img_height)}")
 
 # Initialize the image recognition model and distance calculator
 img_recognizer = ImgRec()
@@ -91,6 +111,7 @@ def audio_worker():
         except Exception as e:
             if not shutdown_event.is_set():
                 print(f"Error in audio worker: {e}")
+                logging.warning(f"Error in audio worker: {e}")
 
 def speak_async(text, priority=Priority.LOW):
     """Add text to the appropriate priority queue"""
@@ -102,6 +123,7 @@ def speak_async(text, priority=Priority.LOW):
             low_priority_queue.put(message)
     except Exception as e:
         print(f"Error queueing audio: {e}")
+        logging.warning(f"Error queueing audio: {e}")
 
 audio_worker_process = Process(target=audio_worker, daemon=True)
 audio_worker_process.start()
@@ -118,13 +140,17 @@ def button_press_action():
     
     if current_pair is None or distances_on_button_press is None:
         print("No frames available yet")
+        logging.info("No frames available yet")
         return
         
     print("Button pressed - performing object detection and distance measurement")
-    
+    logging.info("Button pressed - performing object detection and distance measurement")
+
     detected_objects = img_recognizer.predict_frame(left_rectified)
     print('OBJECTS')
     print(detected_objects)
+    low_priority_queue.clear()
+    logging.info(f"OBJECTS: {detected_objects}")
 
     if SAVE_OUTPUT:
         output = create_detection_image(distances_on_button_press, detected_objects, BORDER)
@@ -142,6 +168,7 @@ def button_press_action():
         else:
             message += f"{obj_name} in vecinity. "
     print(message)
+    logging.info(message)
     speak_async(message, Priority.HIGH)
 
 def on_button_press(channel):
@@ -210,6 +237,7 @@ try:
         if closest_distance is not None and closest_coordinates is not None and closest_distance < THRESHOLD:
             message = f'Object in {closest_distance:.1f} meters'
             print(f'{message} at {closest_coordinates}')
+            logging.info(f'{message} at {closest_coordinates}')
             speak_async(message, Priority.LOW)
         
         # Create a colored depth map for visualization
@@ -233,6 +261,7 @@ try:
 except Exception as e:
     # Log any errors that occur during the loop
     print(f"Error during processing: {e}")
+    logging.warning(f"Error during processing: {e}")
 
 finally:
     # Ensure cleanup happens no matter what
