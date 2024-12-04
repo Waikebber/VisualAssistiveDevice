@@ -4,7 +4,7 @@ import numpy as np
 from stereovision.calibration import StereoCalibrator
 from stereovision.exceptions import ChessboardNotFoundError
 
-OUTPUT_DIR = '../data/stereo_images/scenes/'
+OUTPUT_DIR = '../data/stereo_images/midnight/'
 
 # Scaling factor for display window
 display_scale = 1  # Adjust this value to fit the window on your screen
