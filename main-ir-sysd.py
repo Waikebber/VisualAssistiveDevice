@@ -1,5 +1,4 @@
 import os, json, multiprocessing
-import time
 import cv2
 import numpy as np
 import RPi.GPIO as GPIO
@@ -13,16 +12,15 @@ from queue import Empty
 from dataclasses import dataclass
 from typing import Any
 from enum import Enum
-import logging
-import signal
-import sys
 import threading
 from multiprocessing.synchronize import Event
+import logging
+import signal
 
-CONFIDENCE = 0.6
-THRESHOLD = 3.5   # Threshold in meters (2.5m)
+CONFIDENCE = 0.75  # Img Rec needs 75% confidence
+THRESHOLD = 3.5   # Threshold in meters (3.5m)
 CONFIG_FILE = "stereo_calibration/cam_config.json"
-CALIB_RESULTS = 'data/stereo_images/scenes/calibration_results'
+CALIB_RESULTS = 'data/stereo_images/4am/calibration_results'
 SAVE_OUTPUT = True
 OUTPUT_DIR = 'output'
 OUTPUT_FILE = 'output.png'
@@ -45,12 +43,11 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[logging.StreamHandler()]
 )
-################# Import Configurations ################# 
+
 
 # Load configuration from config.json
 config_path = CONFIG_FILE
 if not os.path.isfile(config_path):
-    logging.warning(f"Configuration file {config_path} not found.")
     raise FileNotFoundError(f"Configuration file {config_path} not found.")
 with open(config_path, 'r') as config_file:
     config = json.load(config_file)
@@ -67,13 +64,13 @@ DISTANCE_SCALE = BASELINE * 5 / 8
 # Camera resolution / image scaling / focal length
 cam_width = int((cam_width + 31) / 32) * 32
 cam_height = int((cam_height + 15) / 16) * 16
-logging.info(f"Used camera resolution: {str(cam_width)} x {str(cam_height)}")
 print("Used camera resolution: " + str(cam_width) + " x " + str(cam_height))
+logging.info(f"Used camera resolution: {str(cam_width)} x {str(cam_height)}")
 img_width = int(cam_width * scale_ratio)
 img_height = int(cam_height * scale_ratio)
 capture = np.zeros((img_height, img_width, 4), dtype=np.uint8)
-logging.info(f"Image resolution: {str(img_width)} x {str(img_height)}")
 print("Image resolution: " + str(img_width) + " x " + str(img_height))
+logging.info(f"Image resolution: {str(img_width)} x {str(img_height)}")
 
 # Initialize the image recognition model and distance calculator
 img_recognizer = ImgRec()
@@ -99,16 +96,13 @@ def audio_worker():
     """Worker process that handles messages based on priority"""
     while not shutdown_event.is_set():
         try:
-            # Always check high priority queue first
             try:
-                # Non-blocking check of high priority queue
                 message = high_priority_queue.get_nowait()
-                speak(message.text, 3, 70)
-                continue  # Go back to start of loop to check for more high priority messages
+                speak(message.text, 3, 90)
+                continue
             except Empty:
                 pass
 
-            # Only check low priority queue if no high priority messages
             message = low_priority_queue.get(timeout=1)
             speak(message.text, 3, 70)
             
@@ -116,10 +110,9 @@ def audio_worker():
             continue
         except Exception as e:
             if not shutdown_event.is_set():
-                logging.warning(f"Error in audio worker: {e}")
                 print(f"Error in audio worker: {e}")
+                logging.warning(f"Error in audio worker: {e}")
 
-audio_process = None
 def speak_async(text, priority=Priority.LOW):
     """Add text to the appropriate priority queue"""
     try:
@@ -129,8 +122,8 @@ def speak_async(text, priority=Priority.LOW):
         else:
             low_priority_queue.put(message)
     except Exception as e:
-        logging.warning(f"Error queueing audio: {e}")
         print(f"Error queueing audio: {e}")
+        logging.warning(f"Error queueing audio: {e}")
 
 audio_worker_process = Process(target=audio_worker, daemon=True)
 audio_worker_process.start()
@@ -147,13 +140,16 @@ def button_press_action():
     
     if current_pair is None or distances_on_button_press is None:
         print("No frames available yet")
+        logging.info("No frames available yet")
         return
         
     print("Button pressed - performing object detection and distance measurement")
-    
+    logging.info("Button pressed - performing object detection and distance measurement")
+
     detected_objects = img_recognizer.predict_frame(left_rectified)
     print('OBJECTS')
     print(detected_objects)
+    logging.info(f"OBJECTS: {detected_objects}")
 
     if SAVE_OUTPUT:
         output = create_detection_image(distances_on_button_press, detected_objects, BORDER)
@@ -164,21 +160,22 @@ def button_press_action():
     object_distances = calculate_object_distances(distances_on_button_press, detected_objects, border=0, percentile=20, confidence_threshold=CONFIDENCE)
     
     # Process and announce detected objects within threshold
+    message = ''
     for obj_name, distance_val in object_distances:
         if distance_val < THRESHOLD:
-            message = f"Detected {obj_name} at {distance_val:.2f} meters"
-            print(message)
-            speak_async(message, Priority.HIGH)
+            message += f"{obj_name} at {distance_val:.1f} meters. "
         else:
-            message = f"{obj_name} further than {THRESHOLD} meters"
-            print(message)
-            speak_async(message, Priority.HIGH)
+            message += f"{obj_name} in vecinity. "
+    print(message)
+    low_priority_queue.clear()
+    logging.info(message)
+    speak_async(message, Priority.HIGH)
 
 def on_button_press(channel):
     p = multiprocessing.Process(target=button_press_action)
     p.start()
 
-GPIO.add_event_detect(BUTTON_PIN, GPIO.RISING, callback=on_button_press, bouncetime=200)
+GPIO.add_event_detect(BUTTON_PIN, GPIO.RISING, callback=on_button_press, bouncetime=500)
 
 ################# Camera Processing #################
 
@@ -191,14 +188,12 @@ camera_left.start()
 camera_right.start()
 
 # Initialize interface windows
-"""
-cv2.namedWindow("Depth Map")
-cv2.moveWindow("Depth Map", 50, 100)
-cv2.namedWindow("Left Camera")
-cv2.moveWindow("Left Camera", 450, 100)
-cv2.namedWindow("Right Camera")
-cv2.moveWindow("Right Camera", 850, 100)
-"""
+# cv2.namedWindow("Depth Map")
+# cv2.moveWindow("Depth Map", 50, 100)
+# cv2.namedWindow("Left Camera")
+# cv2.moveWindow("Left Camera", 450, 100)
+# cv2.namedWindow("Right Camera")
+# cv2.moveWindow("Right Camera", 850, 100)
 
 try:
     # Start the main processing loop
@@ -213,7 +208,7 @@ try:
         # Generate the disparity map
         min_disp = 0
         num_disp = 16 * 4  # must be divisible by 16
-        block_size = 10
+        block_size = 11
         disparity = make_disparity_map(left_rectified, right_rectified, min_disp, num_disp, block_size)
         rectified_pair = (left_rectified, right_rectified)
         
@@ -236,13 +231,13 @@ try:
             max_thresh=5,
             border=BORDER,
             topBorder=100,
-            min_region_area=6000  # Adjust based on your typical object size
+            min_region_area=4000  # Adjust based on your typical object size
         )
         
         if closest_distance is not None and closest_coordinates is not None and closest_distance < THRESHOLD:
-            message = f'Closest distance: {closest_distance:.2f} meters'
-            logging.info(f'{message} at {closest_coordinates}')
+            message = f'Object in {closest_distance:.1f} meters'
             print(f'{message} at {closest_coordinates}')
+            logging.info(f'{message} at {closest_coordinates}')
             speak_async(message, Priority.LOW)
         
         # Create a colored depth map for visualization
@@ -254,12 +249,9 @@ try:
             cv2.circle(current_distances, closest_coordinates, 5, (0, 255, 0), 2)
 
         # Display frames
-        """
-        cv2.imshow("Left Camera", left_rectified)
-        cv2.imshow("Right Camera", right_rectified)
-        cv2.imshow("Depth Map", depth_map_colored)
-        """
-
+        # cv2.imshow("Left Camera", left_rectified)
+        # cv2.imshow("Right Camera", right_rectified)
+        # cv2.imshow("Depth Map", depth_map_colored)
 
         # Check for quit command
         key = cv2.waitKey(1) & 0xFF
