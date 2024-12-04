@@ -1,4 +1,4 @@
-import os, json, multiprocessing
+import os, json, multiprocessing, sys
 import cv2
 import numpy as np
 import RPi.GPIO as GPIO
@@ -26,6 +26,7 @@ OUTPUT_DIR = 'output'
 OUTPUT_FILE = 'output.png'
 DISPLAY_RATIO = 1  # Scaling factor for display
 BORDER = 50        # Border to ignore for depth map calculations
+DISPLAY = True
 
 ################# SystemD ################# 
 
@@ -186,12 +187,13 @@ camera_left.start()
 camera_right.start()
 
 # Initialize interface windows
-cv2.namedWindow("Depth Map")
-cv2.moveWindow("Depth Map", 50, 100)
-cv2.namedWindow("Left Camera")
-cv2.moveWindow("Left Camera", 450, 100)
-cv2.namedWindow("Right Camera")
-cv2.moveWindow("Right Camera", 850, 100)
+if DISPLAY:
+    cv2.namedWindow("Depth Map")
+    cv2.moveWindow("Depth Map", 50, 100)
+    cv2.namedWindow("Left Camera")
+    cv2.moveWindow("Left Camera", 450, 100)
+    cv2.namedWindow("Right Camera")
+    cv2.moveWindow("Right Camera", 850, 100)
 
 try:
     # Start the main processing loop
@@ -247,9 +249,10 @@ try:
             cv2.circle(current_distances, closest_coordinates, 5, (0, 255, 0), 2)
 
         # Display frames
-        cv2.imshow("Left Camera", left_rectified)
-        cv2.imshow("Right Camera", right_rectified)
-        cv2.imshow("Depth Map", depth_map_colored)
+        if DISPLAY:
+            cv2.imshow("Left Camera", left_rectified)
+            cv2.imshow("Right Camera", right_rectified)
+            cv2.imshow("Depth Map", depth_map_colored)
 
         # Check for quit command
         key = cv2.waitKey(1) & 0xFF
@@ -268,4 +271,5 @@ finally:
         audio_worker_process.terminate()
     camera_left.stop()
     camera_right.stop()
-    cv2.destroyAllWindows()
+    if DISPLAY:
+        cv2.destroyAllWindows()
