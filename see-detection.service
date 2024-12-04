@@ -1,0 +1,26 @@
+[Unit]
+Description=SEE Hat Service
+After=network.target
+
+[Service]
+# Specify the user and group to run the service
+User=shafai3b
+Group=audio
+
+# Specify the working directory where the script resides
+WorkingDirectory=/home/shafai3b/Desktop/VisualAssistiveDevice
+
+# env
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=PULSE_RUNTIME_PATH=/run/user/1000/pulse
+
+# Execute the script
+ExecStart=/bin/bash /home/shafai3b/Desktop/VisualAssistiveDevice/startup_hat_script
+
+# Restart on failure
+Restart=no
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+
