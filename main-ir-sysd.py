@@ -1,4 +1,4 @@
-import os, json, multiprocessing
+import os, json, multiprocessing, sys
 import cv2
 import numpy as np
 import RPi.GPIO as GPIO
@@ -16,7 +16,6 @@ import threading
 from multiprocessing.synchronize import Event
 import logging
 import signal
-import sys
 
 CONFIDENCE = 0.75  # Img Rec needs 75% confidence
 THRESHOLD = 3.5   # Threshold in meters (3.5m)
@@ -27,6 +26,7 @@ OUTPUT_DIR = 'output'
 OUTPUT_FILE = 'output.png'
 DISPLAY_RATIO = 1  # Scaling factor for display
 BORDER = 50        # Border to ignore for depth map calculations
+DISPLAY = False
 
 ################# SystemD ################# 
 
@@ -44,7 +44,6 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
     handlers=[logging.StreamHandler()]
 )
-
 
 # Load configuration from config.json
 config_path = CONFIG_FILE
@@ -65,12 +64,10 @@ DISTANCE_SCALE = BASELINE * 5 / 8
 # Camera resolution / image scaling / focal length
 cam_width = int((cam_width + 31) / 32) * 32
 cam_height = int((cam_height + 15) / 16) * 16
-print("Used camera resolution: " + str(cam_width) + " x " + str(cam_height))
 logging.info(f"Used camera resolution: {str(cam_width)} x {str(cam_height)}")
 img_width = int(cam_width * scale_ratio)
 img_height = int(cam_height * scale_ratio)
 capture = np.zeros((img_height, img_width, 4), dtype=np.uint8)
-print("Image resolution: " + str(img_width) + " x " + str(img_height))
 logging.info(f"Image resolution: {str(img_width)} x {str(img_height)}")
 
 # Initialize the image recognition model and distance calculator
@@ -93,6 +90,11 @@ class PriorityMessage:
 high_priority_queue = Queue()
 low_priority_queue = Queue()
 
+def clear_queue(q):
+    """ Clears the given queue """
+    while not q.empty():
+        q.get()
+
 def audio_worker():
     """Worker process that handles messages based on priority"""
     while not shutdown_event.is_set():
@@ -111,7 +113,6 @@ def audio_worker():
             continue
         except Exception as e:
             if not shutdown_event.is_set():
-                print(f"Error in audio worker: {e}")
                 logging.warning(f"Error in audio worker: {e}")
 
 def speak_async(text, priority=Priority.LOW):
@@ -123,7 +124,6 @@ def speak_async(text, priority=Priority.LOW):
         else:
             low_priority_queue.put(message)
     except Exception as e:
-        print(f"Error queueing audio: {e}")
         logging.warning(f"Error queueing audio: {e}")
 
 audio_worker_process = Process(target=audio_worker, daemon=True)
@@ -140,16 +140,13 @@ def button_press_action():
     left_rectified = current_pair[0]
     
     if current_pair is None or distances_on_button_press is None:
-        print("No frames available yet")
         logging.info("No frames available yet")
         return
         
-    print("Button pressed - performing object detection and distance measurement")
     logging.info("Button pressed - performing object detection and distance measurement")
 
     detected_objects = img_recognizer.predict_frame(left_rectified)
-    print('OBJECTS')
-    print(detected_objects)
+    clear_queue(low_priority_queue)
     logging.info(f"OBJECTS: {detected_objects}")
 
     if SAVE_OUTPUT:
@@ -167,8 +164,8 @@ def button_press_action():
             message += f"{obj_name} at {distance_val:.1f} meters. "
         else:
             message += f"{obj_name} in vecinity. "
-    print(message)
-    low_priority_queue.clear()
+    if message == '':
+        message = 'No detections'
     logging.info(message)
     speak_async(message, Priority.HIGH)
 
@@ -189,12 +186,13 @@ camera_left.start()
 camera_right.start()
 
 # Initialize interface windows
-# cv2.namedWindow("Depth Map")
-# cv2.moveWindow("Depth Map", 50, 100)
-# cv2.namedWindow("Left Camera")
-# cv2.moveWindow("Left Camera", 450, 100)
-# cv2.namedWindow("Right Camera")
-# cv2.moveWindow("Right Camera", 850, 100)
+if DISPLAY:
+    cv2.namedWindow("Depth Map")
+    cv2.moveWindow("Depth Map", 50, 100)
+    cv2.namedWindow("Left Camera")
+    cv2.moveWindow("Left Camera", 450, 100)
+    cv2.namedWindow("Right Camera")
+    cv2.moveWindow("Right Camera", 850, 100)
 
 try:
     # Start the main processing loop
@@ -237,9 +235,9 @@ try:
         
         if closest_distance is not None and closest_coordinates is not None and closest_distance < THRESHOLD:
             message = f'Object in {closest_distance:.1f} meters'
-            print(f'{message} at {closest_coordinates}')
             logging.info(f'{message} at {closest_coordinates}')
             speak_async(message, Priority.LOW)
+            clear_queue(low_priority_queue)
         
         # Create a colored depth map for visualization
         depth_map_colored = make_colored_distance_map(current_distances, min_distance=0, max_distance=THRESHOLD)
@@ -250,9 +248,10 @@ try:
             cv2.circle(current_distances, closest_coordinates, 5, (0, 255, 0), 2)
 
         # Display frames
-        # cv2.imshow("Left Camera", left_rectified)
-        # cv2.imshow("Right Camera", right_rectified)
-        # cv2.imshow("Depth Map", depth_map_colored)
+        if DISPLAY:
+            cv2.imshow("Left Camera", left_rectified)
+            cv2.imshow("Right Camera", right_rectified)
+            cv2.imshow("Depth Map", depth_map_colored)
 
         # Check for quit command
         key = cv2.waitKey(1) & 0xFF
@@ -261,7 +260,6 @@ try:
 
 except Exception as e:
     # Log any errors that occur during the loop
-    print(f"Error during processing: {e}")
     logging.warning(f"Error during processing: {e}")
 
 finally:
@@ -272,4 +270,5 @@ finally:
         audio_worker_process.terminate()
     camera_left.stop()
     camera_right.stop()
-    # cv2.destroyAllWindows()
+    if DISPLAY:
+        cv2.destroyAllWindows()
