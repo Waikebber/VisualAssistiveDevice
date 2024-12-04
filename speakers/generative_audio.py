@@ -2,13 +2,14 @@ from espeakng import ESpeakNG
 from enum import Enum
 import subprocess
 from typing import Union
+from time import sleep
 
 APPROPRIATE_VOL: int = 30
 DEFAULT_SPEED: int = 130
 DEFAULT_PITCH: int = 40
 
 esng = ESpeakNG()
-esng.voice = 'en-us+f3'
+esng.voice = 'en-us+f2'
 esng.speed = DEFAULT_SPEED
 esng.pitch = DEFAULT_PITCH
 
@@ -34,6 +35,8 @@ def speak(text, channel: Union[int, SpeakerChannel] = SpeakerChannel.BOTH, vol: 
         set_volume(0, vol)
 
     esng.say(text)
+    
+    sleep(6)
 
 def set_volume(left_volume, right_volume):
     """Set the volume for left and right speakers."""
@@ -47,7 +50,7 @@ def set_volume(left_volume, right_volume):
     
     try:
         subprocess.run(command, check=True, capture_output=True, text=True)
-        print(f"Volume set to: Left {left_volume}%, Right {right_volume}%")
+        # print(f"Volume set to: Left {left_volume}%, Right {right_volume}%")
     except subprocess.CalledProcessError as e:
         print(f"Error setting volume: {e}")
         print(f"Error output: {e.stderr}")
