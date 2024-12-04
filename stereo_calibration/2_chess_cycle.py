@@ -34,7 +34,7 @@ import cv2
 import numpy as np
 from camera.cam_config import initialize_camera
 
-SAVE_PATH = "../data/dataset1/RAW/"
+SAVE_PATH = "../data/midnight/"
 
 # Load Camera settings
 config_path = "cam_config.json"
@@ -46,6 +46,8 @@ with open(config_path, 'r') as config_file:
 # Create scenes directory if it doesn't exist
 if not os.path.isdir(SAVE_PATH):
     os.makedirs(SAVE_PATH)
+
+os.makedirs(SAVE_PATH, exist_ok=True)
 
 # Photo session settings
 total_photos = int(config['total_photos'])
@@ -96,8 +98,9 @@ try:
         if cntdwn_timer == -1:
             counter += 1
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f'./scenes/scene_{img_width}x{img_height}_{counter}.png'
-            cv2.imwrite(filename, frame)
+            filename = f'scene_{img_width}x{img_height}_{counter}.png'
+            filepath = os.path.join(SAVE_PATH, filename)
+            cv2.imwrite(filepath, frame)
             print(f' [{counter} of {total_photos}] {filename}')
             t2 = datetime.now()
             time.sleep(1)
