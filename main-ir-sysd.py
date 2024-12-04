@@ -16,6 +16,7 @@ import threading
 from multiprocessing.synchronize import Event
 import logging
 import signal
+import sys
 
 CONFIDENCE = 0.75  # Img Rec needs 75% confidence
 THRESHOLD = 3.5   # Threshold in meters (3.5m)
