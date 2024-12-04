@@ -12,8 +12,8 @@ import os
 import cv2
 import shutil
 
-INPUT_FOLDER = "../data/dataset1/RAW/"
-OUTPUT_FOLDER =  "../data/stereo_images/scenes/"
+INPUT_FOLDER = "../data/midnight/"
+OUTPUT_FOLDER =  "../data/stereo_images/"
 
 def split_and_save_images(input_folder, output_folder):
     """
@@ -83,3 +83,6 @@ def split_and_save_images(input_folder, output_folder):
             print(f"Processed and saved: {filename} as {image_number}")
 
     print("Processing complete.")
+
+
+split_and_save_images(INPUT_FOLDER, OUTPUT_FOLDER)
