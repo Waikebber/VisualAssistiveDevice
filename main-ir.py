@@ -64,12 +64,10 @@ DISTANCE_SCALE = BASELINE * 5 / 8
 # Camera resolution / image scaling / focal length
 cam_width = int((cam_width + 31) / 32) * 32
 cam_height = int((cam_height + 15) / 16) * 16
-print("Used camera resolution: " + str(cam_width) + " x " + str(cam_height))
 logging.info(f"Used camera resolution: {str(cam_width)} x {str(cam_height)}")
 img_width = int(cam_width * scale_ratio)
 img_height = int(cam_height * scale_ratio)
 capture = np.zeros((img_height, img_width, 4), dtype=np.uint8)
-print("Image resolution: " + str(img_width) + " x " + str(img_height))
 logging.info(f"Image resolution: {str(img_width)} x {str(img_height)}")
 
 # Initialize the image recognition model and distance calculator
@@ -92,6 +90,11 @@ class PriorityMessage:
 high_priority_queue = Queue()
 low_priority_queue = Queue()
 
+def clear_queue(q):
+    """ Clears the given queue """
+    while not q.empty():
+        q.get()
+
 def audio_worker():
     """Worker process that handles messages based on priority"""
     while not shutdown_event.is_set():
@@ -110,7 +113,6 @@ def audio_worker():
             continue
         except Exception as e:
             if not shutdown_event.is_set():
-                print(f"Error in audio worker: {e}")
                 logging.warning(f"Error in audio worker: {e}")
 
 def speak_async(text, priority=Priority.LOW):
@@ -122,7 +124,6 @@ def speak_async(text, priority=Priority.LOW):
         else:
             low_priority_queue.put(message)
     except Exception as e:
-        print(f"Error queueing audio: {e}")
         logging.warning(f"Error queueing audio: {e}")
 
 audio_worker_process = Process(target=audio_worker, daemon=True)
@@ -139,17 +140,13 @@ def button_press_action():
     left_rectified = current_pair[0]
     
     if current_pair is None or distances_on_button_press is None:
-        print("No frames available yet")
         logging.info("No frames available yet")
         return
         
-    print("Button pressed - performing object detection and distance measurement")
     logging.info("Button pressed - performing object detection and distance measurement")
 
     detected_objects = img_recognizer.predict_frame(left_rectified)
-    print('OBJECTS')
-    print(detected_objects)
-    low_priority_queue.clear()
+    clear_queue(low_priority_queue)
     logging.info(f"OBJECTS: {detected_objects}")
 
     if SAVE_OUTPUT:
@@ -167,7 +164,8 @@ def button_press_action():
             message += f"{obj_name} at {distance_val:.1f} meters. "
         else:
             message += f"{obj_name} in vecinity. "
-    print(message)
+    if message == '':
+        message = 'No detections'
     logging.info(message)
     speak_async(message, Priority.HIGH)
 
@@ -236,9 +234,9 @@ try:
         
         if closest_distance is not None and closest_coordinates is not None and closest_distance < THRESHOLD:
             message = f'Object in {closest_distance:.1f} meters'
-            print(f'{message} at {closest_coordinates}')
             logging.info(f'{message} at {closest_coordinates}')
             speak_async(message, Priority.LOW)
+            clear_queue(low_priority_queue)
         
         # Create a colored depth map for visualization
         depth_map_colored = make_colored_distance_map(current_distances, min_distance=0, max_distance=THRESHOLD)
@@ -260,7 +258,6 @@ try:
 
 except Exception as e:
     # Log any errors that occur during the loop
-    print(f"Error during processing: {e}")
     logging.warning(f"Error during processing: {e}")
 
 finally:
