@@ -15,10 +15,10 @@ from enum import Enum
 import threading
 from multiprocessing.synchronize import Event
 
-CONFIDENCE = 0.6  # Img Rec needs 60% confidence
+CONFIDENCE = 0.75  # Img Rec needs 75% confidence
 THRESHOLD = 3.5   # Threshold in meters (3.5m)
 CONFIG_FILE = "stereo_calibration/cam_config.json"
-CALIB_RESULTS = 'data/stereo_images/scenes/calibration_results'
+CALIB_RESULTS = 'data/stereo_images/4am/calibration_results'
 SAVE_OUTPUT = True
 OUTPUT_DIR = 'output'
 OUTPUT_FILE = 'output.png'
@@ -135,21 +135,20 @@ def button_press_action():
     object_distances = calculate_object_distances(distances_on_button_press, detected_objects, border=0, percentile=20, confidence_threshold=CONFIDENCE)
     
     # Process and announce detected objects within threshold
+    message = ''
     for obj_name, distance_val in object_distances:
         if distance_val < THRESHOLD:
-            message = f"Detected {obj_name} at {distance_val:.2f} meters"
-            print(message)
-            speak_async(message, Priority.HIGH)
+            message += f"{obj_name} at {distance_val:.1f} meters. "
         else:
-            message = f"{obj_name} further than {THRESHOLD} meters"
-            print(message)
-            speak_async(message, Priority.HIGH)
+            message += f"{obj_name} in vecinity. "
+    print(message)
+    speak_async(message, Priority.HIGH)
 
 def on_button_press(channel):
     p = multiprocessing.Process(target=button_press_action)
     p.start()
 
-GPIO.add_event_detect(BUTTON_PIN, GPIO.RISING, callback=on_button_press, bouncetime=200)
+GPIO.add_event_detect(BUTTON_PIN, GPIO.RISING, callback=on_button_press, bouncetime=500)
 
 ################# Camera Processing #################
 
@@ -182,7 +181,7 @@ try:
         # Generate the disparity map
         min_disp = 0
         num_disp = 16 * 4  # must be divisible by 16
-        block_size = 10
+        block_size = 11
         disparity = make_disparity_map(left_rectified, right_rectified, min_disp, num_disp, block_size)
         rectified_pair = (left_rectified, right_rectified)
         
@@ -205,11 +204,11 @@ try:
             max_thresh=5,
             border=BORDER,
             topBorder=100,
-            min_region_area=6000  # Adjust based on your typical object size
+            min_region_area=4000  # Adjust based on your typical object size
         )
         
         if closest_distance is not None and closest_coordinates is not None and closest_distance < THRESHOLD:
-            message = f'Closest distance: {closest_distance:.2f} meters'
+            message = f'Object in {closest_distance:.1f} meters'
             print(f'{message} at {closest_coordinates}')
             speak_async(message, Priority.LOW)
         
