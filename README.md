@@ -35,21 +35,22 @@ source yolo-env/bin/activate
 
 ```
 project_root/
-├── main.py                   # Basic stereo vision script
-├── main-ir.py                # Stereo vision with image recognition
+├── main-ir.py                  # System Script with Visualizations
+├── main-ir-sysd.py             # System Script for boot up
 ├── image_rec/              # Image recognition package
 │   ├── __init__.py
-│   ├── img_rec.py           # YOLO implementation
-│   └── stereoImgRec.py      # Stereo image recognition helpers
+│   ├── img_rec.py              # YOLO implementation
+│   └── stereoImgRec.py         # Stereo image recognition helpers
 ├── speakers/               # Audio feedback package
 │   ├── __init__.py
-│   └── generative_audio.py   # Text-to-speech function
+│   └── generative_audio.py     # Text-to-speech function
 └── stereo_calibration/     # Calibration files
-    ├── cam_config.json       # Camera configuration
-    ├── 3dmap_set.txt        # Stereo matching parameters
-    ├── tuning_helper.py      # Helper for loading 3dmap_set.txt
-    ├── rectify.py           # Image rectification and depth mapping
-    └── calib_result/         # Camera calibration data
+    ├── cam_config.json         # Camera configuration
+    ├── 3dmap_set.txt           # Stereo matching parameters
+    ├── tuning_helper.py        # Helper for loading 3dmap_set.txt
+    ├── rectify.py              # Image rectification and depth mapping
+    ├── calib_result/         # Camera calibration data
+    └── camera/               # Contains scripts for initializing cameras
 ```
 
 ## Configuration
@@ -66,14 +67,14 @@ project_root/
 
 ## Usage
 
-1. Basic Stereo Vision (without object detection):
-```bash
-python main.py
-```
-
-2. Full System (with object detection):
+1. Full System with object detection and stereovision (with visualizations):
 ```bash
 python main-ir.py
+```
+
+2. Full System for bootup(without visualizations):
+```bash
+python main-ir-sysd.py
 ```
 
 3. Controls:
@@ -134,14 +135,22 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 You should have received a copy of the GNU Affero General Public License along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-### Acknowledgments and Attributions
+## Acknowledgments and Attributions
 
-#### Stereovision Implementation
-- Inspired by [Realizator's stereopi-tutorial repo](https://github.com/realizator/stereopi-tutorial)
-- Licensed under GPL-3.0
+This project builds upon existing open-source work while maintaining compliance with their respective licenses:
 
-This project builds upon existing open-source work while maintaining compliance with their respective licenses. The original stereovision implementation's GPL-3.0 license is compatible with our project's AGPL-3.0 license.
+### Stereovision Implementation
+- **[Realizator's stereopi-tutorial repo](https://github.com/realizator/stereopi-tutorial)**  
+  - Licensed under GPL-3.0
+- **[Christian Orr's stereo-camera-calibration repo](https://github.com/ChristianOrr/stereo-camera-calibration)**  
+  - Licensed under Apache-2.0
 
-For the complete license text, see the LICENSE file in the root directory or visit:
+We acknowledge the contributions of these projects, which have inspired and informed this project's stereovision functionality.
+
+This project adheres to the terms of the above licenses. For further details:
+- See the `LICENSE` file in the root directory.
 - [GNU AGPL-3.0](https://www.gnu.org/licenses/agpl-3.0.en.html)
-- [Original GPL-3.0](https://www.gnu.org/licenses/gpl-3.0.en.html)
+- [GPL-3.0](https://www.gnu.org/licenses/gpl-3.0.en.html)
+- [Apache-2.0](https://www.apache.org/licenses/LICENSE-2.0)
+
+This program is distributed under the terms of the GNU Affero General Public License, Version 3, 19 November 2007, as published by the Free Software Foundation.
