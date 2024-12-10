@@ -56,6 +56,13 @@ Calibration was Successful, What's Next?
 
 Once the stereo camera is calibrated, you can use it for depth estimation. A good starting point is OpenCV's block matching techniques, which provide basic stereo depth estimation. For more advanced methods, consider exploring deep stereo techniques like MADNet.
 
+7.  Stereo
+
+    This is a simple script to run stereovision on images from the model calibrated.
+
+8.  Stereo Video
+    This is a simple script for running stereovision on video imagery.
+
 ### LICENSE
 
 This code is derived from the [stereo-camera-calibration repository](https://github.com/ChristianOrr/stereo-camera-calibration) by ChristianOrr and follows the original license.d backspace to delete the image pair. Make sure that there are 30-50 image that are valid.
