@@ -81,17 +81,6 @@ python main-ir-sysd.py
    - Press button to trigger object detection and distance measurement
    - Press 'q' to quit (when display is enabled)
 
-## Operation Modes
-
-1. **Display Mode**:
-   - Shows real-time camera feeds and depth map
-   - Useful for testing and calibration
-
-2. **Headless Mode**:
-   - Runs without visual output
-   - Suitable for standalone operation
-   - Reduces processing overhead
-
 ## Audio Feedback
 
 The system provides audio notifications for:
